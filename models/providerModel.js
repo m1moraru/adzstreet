@@ -6,7 +6,7 @@ async function getAllProviders(filters = {}) {
     'p.is_active = true',
     'p.is_published = true',
     'p.age_verified = true',
-    `p.age_verification_status = 'verified'`,
+    `p.age_verification_status IN ('verified', 'approved')`,
   ];
 
   if (filters.city) {
@@ -245,7 +245,7 @@ async function getProviderByPublicId(publicId) {
       AND p.is_active = true
       AND p.is_published = true
       AND p.age_verified = true
-      AND p.age_verification_status = 'verified'
+      AND p.age_verification_status IN ('verified', 'approved')
     LIMIT 1;
   `;
 
