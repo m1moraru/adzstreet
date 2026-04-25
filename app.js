@@ -14,6 +14,7 @@ import ageVerificationRoutes from './routes/ageVerificationRoutes.js';
 
 const app = express();
 
+/* -------------------- CORS -------------------- */
 app.use(
   cors({
     origin: [
@@ -22,42 +23,55 @@ app.use(
       'http://localhost:3000',
       'http://127.0.0.1:3000',
       'https://adzstreet.com',
-      'https://www.adzstreet.com'
+      'https://www.adzstreet.com',
     ],
     credentials: true,
   })
 );
 
+/* -------------------- WEBHOOK -------------------- */
 app.use(ageVerificationWebhookRoutes);
 
+/* -------------------- BODY PARSER -------------------- */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+/* -------------------- SESSION -------------------- */
 app.set("trust proxy", 1);
+
+const cookieOptions = {
+  path: "/",
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  domain: process.env.NODE_ENV === "production" ? ".adzstreet.com" : undefined,
+};
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'rotikos_987123_sokitore_1245',
     resave: false,
     saveUninitialized: false,
     cookie: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    domain: process.env.NODE_ENV === "production" ? ".adzstreet.com" : undefined,
-    maxAge: 1000 * 60 * 60 * 24 * 7,
-  },
+      ...cookieOptions,
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    },
   })
 );
 
+/* -------------------- PASSPORT -------------------- */
 app.use(passport.initialize());
 app.use(passport.session());
 
+/* -------------------- STATIC -------------------- */
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
+/* -------------------- HEALTH CHECK -------------------- */
 app.get('/', (_req, res) => {
   res.send('API is running...');
 });
 
+/* -------------------- ROUTES -------------------- */
 app.use('/api/auth', authRoutes);
 app.use('/api/providers', providerRoutes);
 app.use('/api', publicRoutes);
@@ -65,8 +79,9 @@ app.use('/api', publicRoutes);
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.use("/api", ageVerificationRoutes);
+app.use('/api', ageVerificationRoutes);
 
+/* -------------------- ERROR HANDLER -------------------- */
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error);
 

@@ -38,11 +38,12 @@ export function logoutProvider(req, res, next) {
     req.session.destroy((sessionError) => {
       if (sessionError) return next(sessionError);
 
-      res.clearCookie('connect.sid', {
-        path: '/',
+      res.clearCookie("connect.sid", {
+        path: "/",
         httpOnly: true,
-        secure: false,
-        sameSite: 'lax',
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        domain: process.env.NODE_ENV === "production" ? ".adzstreet.com" : undefined,
       });
 
       return res.status(200).json({
