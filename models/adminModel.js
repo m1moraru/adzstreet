@@ -9,8 +9,9 @@ async function getDashboardStats() {
       (SELECT COUNT(*)::int FROM providers WHERE is_published = true) AS "publishedAds",
       (SELECT COUNT(*)::int FROM providers WHERE is_published = false) AS "unpublishedAds",
       (SELECT COUNT(*)::int FROM providers WHERE age_verification_status = 'pending') AS "pendingVerification",
-      (SELECT COUNT(*)::int FROM providers WHERE age_verification_status = 'verified') AS "verifiedProviders",
-      (SELECT COUNT(*)::int FROM providers WHERE age_verification_status = 'failed') AS "rejectedProviders",
+      (SELECT COUNT(*)::int FROM providers WHERE age_verification_status = 'started') AS "startedVerification",
+      (SELECT COUNT(*)::int FROM providers WHERE age_verification_status = 'approved') AS "verifiedProviders",
+      (SELECT COUNT(*)::int FROM providers WHERE age_verification_status IN ('failed', 'declined')) AS "rejectedProviders",
       (SELECT COUNT(*)::int FROM provider_media) AS "totalMedia",
       (
         SELECT COUNT(*)::int
@@ -231,7 +232,7 @@ async function verifyProviderAge(providerId) {
     UPDATE providers
     SET
       age_verified = true,
-      age_verification_status = 'verified',
+      age_verification_status = 'approved',
       age_verified_at = NOW(),
       is_published = true,
       updated_at = NOW()
@@ -266,7 +267,7 @@ async function publishAd(providerId) {
     WHERE id = $1
       AND is_active = true
       AND age_verified = true
-      AND age_verification_status = 'verified'
+      AND age_verification_status IN ('verified', 'approved')
     RETURNING *;
   `;
   const { rows } = await pool.query(query, [providerId]);
