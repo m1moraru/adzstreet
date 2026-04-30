@@ -30,7 +30,7 @@ app.use(
 );
 
 /* -------------------- WEBHOOK -------------------- */
-app.use(ageVerificationWebhookRoutes);
+app.use("/api", ageVerificationWebhookRoutes);
 
 /* -------------------- BODY PARSER -------------------- */
 app.use(express.json());
