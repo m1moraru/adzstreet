@@ -29,16 +29,16 @@ export async function sendVerificationLink(req, res) {
 
     console.log("Verification URL:", session.url);
 
-    // await sendProfessionalProviderEmail({
-    //   to: provider.email,
-    //   providerName: provider.working_name || provider.name || "Provider",
-    //   subject: "Complete your ID age verification",
-    //   message: `Your ad has been received and requires ID age verification before it can be published.
-    //
-    // Please complete your verification using this secure link:
-    //
-    // ${session.url}`,
-    // });
+    await sendProfessionalProviderEmail({
+       to: provider.email,
+       providerName: provider.working_name || provider.name || "Provider",
+       subject: "Complete your ID age verification",
+       message: `Your ad has been received and requires ID age verification before it can be published.
+    
+       Please complete your verification using this secure link:
+    
+       ${session.url}`,
+    });
 
     return res.json({
       message: "Verification email sent",
