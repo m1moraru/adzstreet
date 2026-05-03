@@ -2,7 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import session from 'express-session';
+import pgSession from 'connect-pg-simple';
 
+import pool from './config/db.js';
 import passport from './config/passport.js';
 import providerRoutes from './routes/providerRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
@@ -13,6 +15,7 @@ import ageVerificationWebhookRoutes from './routes/ageVerificationWebhook.routes
 import ageVerificationRoutes from './routes/ageVerificationRoutes.js';
 
 const app = express();
+const PgSession = pgSession(session);
 
 /* -------------------- CORS -------------------- */
 app.use(
@@ -30,29 +33,32 @@ app.use(
 );
 
 /* -------------------- WEBHOOK -------------------- */
-app.use("/api", ageVerificationWebhookRoutes);
+app.use('/api', ageVerificationWebhookRoutes);
 
 /* -------------------- BODY PARSER -------------------- */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* -------------------- SESSION -------------------- */
-app.set("trust proxy", 1);
-
-const cookieOptions = {
-  path: "/",
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-};
+app.set('trust proxy', 1);
 
 app.use(
   session({
+    store: new PgSession({
+      pool,
+      tableName: 'session',
+      createTableIfMissing: true,
+    }),
+    name: 'connect.sid',
     secret: process.env.SESSION_SECRET || 'rotikos_987123_sokitore_1245',
     resave: false,
     saveUninitialized: false,
+    proxy: true,
     cookie: {
-      ...cookieOptions,
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },
   })
