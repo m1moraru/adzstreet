@@ -569,7 +569,8 @@ async function updateProvider(providerId, payload) {
         bio = $16,
         email = $17,
         plan_id = $18,
-        plan_duration = $19
+        plan_duration = $19,
+        updated_at = NOW()
       WHERE id = $20
       RETURNING id;
     `;
@@ -586,14 +587,6 @@ async function updateProvider(providerId, payload) {
       payload.eyes || null,
       payload.height || null,
       payload.phone || null,
-      payload.whatsappEnabled || false,
-      payload.telegramEnabled || false,
-      payload.serviceMode || 'in_call',
-      payload.bio || null,
-      payload.email || null,
-      payload.planId || 'essential',
-      payload.planDuration || '7d',
-      providerId,payload.phone || null,
       payload.whatsappEnabled || false,
       payload.telegramEnabled || false,
       payload.telegramUsername || null,
@@ -653,6 +646,7 @@ async function updateProvider(providerId, payload) {
     if (Array.isArray(payload.locations)) {
       for (const areaName of payload.locations) {
         if (!areaName) continue;
+
         await client.query(
           `INSERT INTO provider_locations (provider_id, area_name)
            VALUES ($1, $2)`,
@@ -664,6 +658,7 @@ async function updateProvider(providerId, payload) {
     if (Array.isArray(payload.locationType)) {
       for (const locationType of payload.locationType) {
         if (!locationType) continue;
+
         await client.query(
           `INSERT INTO provider_location_types (provider_id, location_type)
            VALUES ($1, $2)`,
