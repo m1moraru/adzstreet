@@ -564,7 +564,7 @@ async function updateProvider(providerId, payload) {
         phone = $11,
         whatsapp_enabled = $12,
         telegram_enabled = $13,
-        stelegram_username = $14,
+        telegram_username = $14,
         service_mode = $15,
         bio = $16,
         email = $17,
