@@ -71,6 +71,7 @@ export async function createProvider(req, res, next) {
       phone: body.phone?.trim() || null,
       whatsappEnabled: body.whatsappContact === 'true',
       telegramEnabled: body.telegramContact === 'true',
+      telegramUsername: body.telegramUsername?.replace("@", "").trim() || null,
       serviceMode: body.serviceMode || 'in_call',
       bio: body.description?.trim() || null,
       email: body.email?.trim() || null,
@@ -105,6 +106,13 @@ export async function createProvider(req, res, next) {
       return res.status(400).json({
         success: false,
         message: 'City is required',
+      });
+    }
+
+    if (body.telegramContact === 'true' && !body.telegramUsername?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Telegram username is required when Telegram contact is enabled',
       });
     }
 
@@ -222,6 +230,7 @@ export async function updateMyProvider(req, res, next) {
       phone: body.phone?.trim() || null,
       whatsappEnabled: body.whatsappContact === 'true',
       telegramEnabled: body.telegramContact === 'true',
+      telegramUsername: body.telegramUsername?.replace("@", "").trim() || null,
       serviceMode: body.serviceMode || 'in_call',
       bio: body.description?.trim() || null,
       email: body.email?.trim() || null,
@@ -253,6 +262,13 @@ export async function updateMyProvider(req, res, next) {
       return res.status(400).json({
         success: false,
         message: 'City is required',
+      });
+    }
+
+    if (body.telegramContact === 'true' && !body.telegramUsername?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Telegram username is required when Telegram contact is enabled',
       });
     }
 
