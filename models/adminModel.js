@@ -9,9 +9,8 @@ async function getDashboardStats() {
       (SELECT COUNT(*)::int FROM providers WHERE is_published = true) AS "publishedAds",
       (SELECT COUNT(*)::int FROM providers WHERE is_published = false) AS "unpublishedAds",
       (SELECT COUNT(*)::int FROM providers WHERE age_verification_status = 'pending') AS "pendingVerification",
-      (SELECT COUNT(*)::int FROM providers WHERE age_verification_status = 'started') AS "startedVerification",
-      (SELECT COUNT(*)::int FROM providers WHERE age_verification_status = 'approved') AS "verifiedProviders",
-      (SELECT COUNT(*)::int FROM providers WHERE age_verification_status IN ('failed', 'declined')) AS "rejectedProviders",
+      (SELECT COUNT(*)::int FROM providers WHERE age_verification_status = 'verified') AS "verifiedProviders",
+      (SELECT COUNT(*)::int FROM providers WHERE age_verification_status = 'failed') AS "rejectedProviders",
       (SELECT COUNT(*)::int FROM provider_media) AS "totalMedia",
       (
         SELECT COUNT(*)::int
@@ -39,7 +38,7 @@ async function getProviders(filters = {}) {
       p.name ILIKE $${values.length}
       OR p.email ILIKE $${values.length}
       OR p.phone ILIKE $${values.length}
-      OR p.public_id ILIKE $${values.length}
+      OR p.public_id::text ILIKE $${values.length}
     )`);
   }
 
@@ -88,6 +87,7 @@ async function getProviders(filters = {}) {
       p.email,
       p.whatsapp_enabled AS "whatsappEnabled",
       p.telegram_enabled AS "telegramEnabled",
+      p.telegram_username AS "telegramUsername",
       p.service_mode AS "serviceMode",
       p.payment_status AS "paymentStatus",
       p.age_verified AS "ageVerified",
@@ -146,6 +146,7 @@ async function getProviderById(providerId) {
       p.email,
       p.whatsapp_enabled AS "whatsappEnabled",
       p.telegram_enabled AS "telegramEnabled",
+      p.telegram_username AS "telegramUsername",
       p.service_mode AS "serviceMode",
       p.bio,
       p.plan_id AS "planId",
@@ -232,7 +233,7 @@ async function verifyProviderAge(providerId) {
     UPDATE providers
     SET
       age_verified = true,
-      age_verification_status = 'approved',
+      age_verification_status = 'verified',
       age_verified_at = NOW(),
       is_published = true,
       updated_at = NOW()
@@ -267,7 +268,7 @@ async function publishAd(providerId) {
     WHERE id = $1
       AND is_active = true
       AND age_verified = true
-      AND age_verification_status IN ('verified', 'approved')
+      AND age_verification_status = 'verified'
     RETURNING *;
   `;
   const { rows } = await pool.query(query, [providerId]);

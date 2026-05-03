@@ -6,7 +6,7 @@ async function getAllProviders(filters = {}) {
     'p.is_active = true',
     'p.is_published = true',
     'p.age_verified = true',
-    `p.age_verification_status IN ('verified', 'approved')`,
+    `p.age_verification_status = 'verified'`,
   ];
 
   if (filters.city) {
@@ -157,6 +157,7 @@ async function getProviderByPublicId(publicId) {
       p.email,
       p.whatsapp_enabled AS "whatsappEnabled",
       p.telegram_enabled AS "telegramEnabled",
+      p.telegram_username AS "telegramUsername",
       p.service_mode AS "serviceMode",
       p.plan_id AS "planId",
       p.plan_duration AS "planDuration",
@@ -245,7 +246,7 @@ async function getProviderByPublicId(publicId) {
       AND p.is_active = true
       AND p.is_published = true
       AND p.age_verified = true
-      AND p.age_verification_status IN ('verified', 'approved')
+      AND p.age_verification_status = 'verified'
     LIMIT 1;
   `;
 
@@ -277,6 +278,7 @@ async function getProviderByInternalId(providerId) {
       p.email,
       p.whatsapp_enabled AS "whatsappEnabled",
       p.telegram_enabled AS "telegramEnabled",
+      p.telegram_username AS "telegramUsername",
       p.service_mode AS "serviceMode",
       p.plan_id AS "planId",
       p.plan_duration AS "planDuration",
@@ -387,6 +389,7 @@ async function createProvider(payload) {
         phone,
         whatsapp_enabled,
         telegram_enabled,
+        telegram_username,
         service_mode,
         bio,
         email,
@@ -400,7 +403,7 @@ async function createProvider(payload) {
         is_published
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26
       )
       RETURNING *;
     `;
@@ -420,6 +423,7 @@ async function createProvider(payload) {
       payload.phone || null,
       payload.whatsappEnabled || false,
       payload.telegramEnabled || false,
+      payload.telegramUsername || null,
       payload.serviceMode || 'in_call',
       payload.bio || null,
       payload.email || null,
@@ -560,12 +564,13 @@ async function updateProvider(providerId, payload) {
         phone = $11,
         whatsapp_enabled = $12,
         telegram_enabled = $13,
-        service_mode = $14,
-        bio = $15,
-        email = $16,
-        plan_id = $17,
-        plan_duration = $18
-      WHERE id = $19
+        stelegram_username = $14,
+        service_mode = $15,
+        bio = $16,
+        email = $17,
+        plan_id = $18,
+        plan_duration = $19
+      WHERE id = $20
       RETURNING id;
     `;
 
@@ -583,6 +588,15 @@ async function updateProvider(providerId, payload) {
       payload.phone || null,
       payload.whatsappEnabled || false,
       payload.telegramEnabled || false,
+      payload.serviceMode || 'in_call',
+      payload.bio || null,
+      payload.email || null,
+      payload.planId || 'essential',
+      payload.planDuration || '7d',
+      providerId,payload.phone || null,
+      payload.whatsappEnabled || false,
+      payload.telegramEnabled || false,
+      payload.telegramUsername || null,
       payload.serviceMode || 'in_call',
       payload.bio || null,
       payload.email || null,
@@ -818,6 +832,7 @@ async function getProvidersForAdmin(filters = {}) {
       p.email,
       p.whatsapp_enabled AS "whatsappEnabled",
       p.telegram_enabled AS "telegramEnabled",
+      p.telegram_username AS "telegramUsername",
       p.service_mode AS "serviceMode",
       p.payment_status AS "paymentStatus",
       p.age_verified AS "ageVerified",
