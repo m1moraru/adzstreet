@@ -5,6 +5,8 @@ import {
   getMyProvider,
   updateMyProvider,
   updateMyPassword,
+  pauseMyProvider,
+  updateMyPublicationStatus,
   verifyProviderAge,
   rejectProviderAge,
   getProvidersForAdmin,
@@ -22,6 +24,8 @@ router.post('/', uploadProviderMedia, createProvider);
 router.get('/me', requireAuth, getMyProvider);
 router.put('/me', requireAuth, uploadProviderMedia, updateMyProvider);
 router.put('/me/password', requireAuth, updateMyPassword);
+router.patch('/me/pause', requireAuth, pauseMyProvider);
+router.patch('/me/publication', requireAuth, updateMyPublicationStatus);
 
 // admin
 router.get('/admin/list', getProvidersForAdmin);
