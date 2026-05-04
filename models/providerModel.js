@@ -697,6 +697,44 @@ async function updateProvider(providerId, payload) {
   }
 }
 
+async function pauseProvider(providerId) {
+  const query = `
+    UPDATE providers
+    SET
+      is_published = false,
+      updated_at = NOW()
+    WHERE id = $1
+      AND is_active = true
+    RETURNING id;
+  `;
+
+  const { rows } = await pool.query(query, [providerId]);
+
+  if (!rows[0]) return null;
+
+  return await getProviderByInternalId(providerId);
+}
+
+async function updatePublicationStatus(providerId, isPublished) {
+  const query = `
+    UPDATE providers
+    SET
+      is_published = $1,
+      updated_at = NOW()
+    WHERE id = $2
+      AND is_active = true
+      AND age_verified = true
+      AND age_verification_status = 'verified'
+    RETURNING id;
+  `;
+
+  const { rows } = await pool.query(query, [isPublished, providerId]);
+
+  if (!rows[0]) return null;
+
+  return await getProviderByInternalId(providerId);
+}
+
 async function getProviderAuthByEmail(email) {
   const query = `
     SELECT
@@ -1013,6 +1051,8 @@ export default {
   getProviderByInternalId,
   createProvider,
   updateProvider,
+  pauseProvider,
+  updatePublicationStatus,
   getProviderAuthByEmail,
   getProviderAuthById,
   getProviderPasswordHashById,
