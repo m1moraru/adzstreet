@@ -349,6 +349,61 @@ export async function updateMyPassword(req, res, next) {
   }
 }
 
+export async function pauseMyProvider(req, res, next) {
+  try {
+    const providerId = req.user?.id;
+
+    if (!providerId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    const provider = await providerModel.pauseProvider(providerId);
+
+    if (!provider) {
+      return res.status(404).json({
+        success: false,
+        message: 'Provider not found',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile paused successfully',
+      data: provider,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateMyPublicationStatus(req, res, next) {
+  try {
+    const providerId = req.user?.id;
+    const { isPublished } = req.body || {};
+
+    if (!providerId) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    }
+
+    const provider = await providerModel.updatePublicationStatus(providerId, Boolean(isPublished));
+
+    if (!provider) {
+      return res.status(404).json({ success: false, message: 'Provider not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: provider.isPublished ? 'Listing resumed successfully' : 'Listing paused successfully',
+      data: provider,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function verifyProviderAge(req, res, next) {
   try {
     const { id } = req.params;
