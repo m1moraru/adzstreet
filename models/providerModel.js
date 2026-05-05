@@ -56,50 +56,78 @@ async function getAllProviders(filters = {}) {
         '[]'::json
       ) AS location,
 
+      COALESCE(
+        (
+          SELECT json_agg(location_type ORDER BY location_type)
+          FROM provider_location_types
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS "locationType",
+
       (
-        SELECT
-          CASE
-            WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
-            WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
-            ELSE '/uploads/providers/' || pm.media_url
-          END
-        FROM provider_media pm
-        WHERE pm.provider_id = p.id AND pm.media_type = 'image'
-        ORDER BY pm.sort_order ASC
+        SELECT media_url
+        FROM provider_media
+        WHERE provider_id = p.id AND media_type = 'image'
+        ORDER BY sort_order ASC
         LIMIT 1
       ) AS image,
 
       COALESCE(
         (
-          SELECT json_agg(
-            CASE
-              WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
-              WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
-              ELSE '/uploads/providers/' || pm.media_url
-            END
-            ORDER BY pm.sort_order ASC
-          )
-          FROM provider_media pm
-          WHERE pm.provider_id = p.id AND pm.media_type = 'image'
+          SELECT json_agg(media_url ORDER BY sort_order ASC)
+          FROM provider_media
+          WHERE provider_id = p.id AND media_type = 'image'
         ),
         '[]'::json
       ) AS gallery,
 
       COALESCE(
         (
-          SELECT json_agg(
-            CASE
-              WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
-              WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
-              ELSE '/uploads/providers/' || pm.media_url
-            END
-            ORDER BY pm.sort_order ASC
-          )
-          FROM provider_media pm
-          WHERE pm.provider_id = p.id AND pm.media_type = 'video'
+          SELECT json_agg(media_url ORDER BY sort_order ASC)
+          FROM provider_media
+          WHERE provider_id = p.id AND media_type = 'video'
         ),
         '[]'::json
-      ) AS videos
+      ) AS videos,
+
+      COALESCE(
+        (
+          SELECT json_agg(
+            json_build_object(
+              'name', service_name,
+              'isFeatured', is_featured
+            )
+            ORDER BY created_at ASC
+          )
+          FROM provider_services
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS services,
+
+      COALESCE(
+        (
+          SELECT json_object_agg(rate_label, amount)
+          FROM provider_rates
+          WHERE provider_id = p.id
+        ),
+        '{}'::json
+      ) AS rates,
+
+      COALESCE(
+        (
+          SELECT json_agg(badge_label ORDER BY created_at ASC)
+          FROM provider_badges
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS "trustBadges",
+
+      COALESCE(
+        to_json(string_to_array(COALESCE(p.bio, ''), E'\\n\\n')),
+        '[]'::json
+      ) AS "descriptionParagraphs"
 
     FROM providers p
     WHERE ${conditions.join(' AND ')}
@@ -118,6 +146,7 @@ async function getProviderByPublicId(publicId) {
       p.profile_title AS "profileTitle",
       p.city,
       p.country,
+      p.category,
       p.price,
       p.age,
       p.nationality,
@@ -126,7 +155,13 @@ async function getProviderByPublicId(publicId) {
       p.height,
       p.phone,
       p.email,
+      p.whatsapp_enabled AS "whatsappEnabled",
+      p.telegram_enabled AS "telegramEnabled",
+      p.telegram_username AS "telegramUsername",
       p.service_mode AS "serviceMode",
+      p.plan_id AS "planId",
+      p.plan_duration AS "planDuration",
+      p.payment_status AS "paymentStatus",
       p.age_verified AS "ageVerified",
       p.age_verification_status AS "ageVerificationStatus",
       p.age_verified_at AS "ageVerifiedAt",
@@ -134,35 +169,77 @@ async function getProviderByPublicId(publicId) {
 
       COALESCE(
         (
+          SELECT json_agg(area_name ORDER BY area_name)
+          FROM provider_locations
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS location,
+
+      COALESCE(
+        (
+          SELECT json_agg(location_type ORDER BY location_type)
+          FROM provider_location_types
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS "locationType",
+
+      COALESCE(
+        (
           SELECT json_agg(
-            CASE
-              WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
-              WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
-              ELSE '/uploads/providers/' || pm.media_url
-            END
-            ORDER BY pm.sort_order ASC
+            json_build_object(
+              'name', service_name,
+              'isFeatured', is_featured
+            )
+            ORDER BY created_at ASC
           )
-          FROM provider_media pm
-          WHERE pm.provider_id = p.id AND pm.media_type = 'image'
+          FROM provider_services
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS services,
+
+      COALESCE(
+        (
+          SELECT json_object_agg(rate_label, amount)
+          FROM provider_rates
+          WHERE provider_id = p.id
+        ),
+        '{}'::json
+      ) AS rates,
+
+      COALESCE(
+        (
+          SELECT json_agg(media_url ORDER BY sort_order ASC)
+          FROM provider_media
+          WHERE provider_id = p.id AND media_type = 'image'
         ),
         '[]'::json
       ) AS gallery,
 
       COALESCE(
         (
-          SELECT json_agg(
-            CASE
-              WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
-              WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
-              ELSE '/uploads/providers/' || pm.media_url
-            END
-            ORDER BY pm.sort_order ASC
-          )
-          FROM provider_media pm
-          WHERE pm.provider_id = p.id AND pm.media_type = 'video'
+          SELECT json_agg(media_url ORDER BY sort_order ASC)
+          FROM provider_media
+          WHERE provider_id = p.id AND media_type = 'video'
         ),
         '[]'::json
-      ) AS videos
+      ) AS videos,
+
+      COALESCE(
+        (
+          SELECT json_agg(badge_label ORDER BY created_at ASC)
+          FROM provider_badges
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS "trustBadges",
+
+      COALESCE(
+        to_json(string_to_array(COALESCE(p.bio, ''), E'\\n\\n')),
+        '[]'::json
+      ) AS "descriptionParagraphs"
 
     FROM providers p
     WHERE p.public_id = $1
@@ -715,36 +792,88 @@ async function getProvidersForAdmin(filters = {}) {
       p.id,
       p.public_id AS "publicId",
       p.name,
+      p.profile_title AS "profileTitle",
+      p.city,
+      p.country,
+      p.category,
+      p.price,
+      p.age,
+      p.nationality,
+      p.hair,
+      p.eyes,
+      p.height,
+      p.phone,
+      p.email,
+      p.whatsapp_enabled AS "whatsappEnabled",
+      p.telegram_enabled AS "telegramEnabled",
+      p.telegram_username AS "telegramUsername",
+      p.service_mode AS "serviceMode",
+      p.payment_status AS "paymentStatus",
+      p.age_verified AS "ageVerified",
+      p.age_verification_status AS "ageVerificationStatus",
+      p.age_verified_at AS "ageVerifiedAt",
+      p.is_published AS "isPublished",
+      p.is_active AS "isActive",
+      p.created_at AS "createdAt",
+      p.updated_at AS "updatedAt",
 
       (
-        SELECT
-          CASE
-            WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
-            WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
-            ELSE '/uploads/providers/' || pm.media_url
-          END
+        SELECT media_url
         FROM provider_media pm
-        WHERE pm.provider_id = p.id AND pm.media_type = 'image'
+        WHERE pm.provider_id = p.id
+          AND pm.media_type = 'image'
         ORDER BY pm.sort_order ASC
         LIMIT 1
       ) AS image,
 
+      (
+        SELECT COUNT(*)
+        FROM provider_media pm
+        WHERE pm.provider_id = p.id
+      )::int AS "mediaCount",
+
+      COALESCE(
+        (
+          SELECT json_agg(area_name ORDER BY area_name)
+          FROM provider_locations
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS location,
+
       COALESCE(
         (
           SELECT json_agg(
-            CASE
-              WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
-              WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
-              ELSE '/uploads/providers/' || pm.media_url
-            END
-            ORDER BY pm.sort_order ASC
+            json_build_object(
+              'name', service_name,
+              'isFeatured', is_featured
+            )
+            ORDER BY created_at ASC
           )
+          FROM provider_services
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS services,
+
+      COALESCE(
+        (
+          SELECT json_object_agg(rate_label, amount)
+          FROM provider_rates
+          WHERE provider_id = p.id
+        ),
+        '{}'::json
+      ) AS rates,
+
+      COALESCE(
+        (
+          SELECT json_agg(pm.media_url ORDER BY pm.sort_order ASC)
           FROM provider_media pm
-          WHERE pm.provider_id = p.id AND pm.media_type = 'image'
+          WHERE pm.provider_id = p.id
+            AND pm.media_type = 'image'
         ),
         '[]'::json
       ) AS gallery
-
     FROM providers p
     WHERE ${conditions.join(' AND ')}
     ORDER BY p.created_at DESC;
