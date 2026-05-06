@@ -66,27 +66,46 @@ async function getAllProviders(filters = {}) {
       ) AS "locationType",
 
       (
-        SELECT media_url
-        FROM provider_media
-        WHERE provider_id = p.id AND media_type = 'image'
-        ORDER BY sort_order ASC
+        SELECT
+          CASE
+            WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
+            WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
+            ELSE '/uploads/providers/' || pm.media_url
+          END
+        FROM provider_media pm
+        WHERE pm.provider_id = p.id AND pm.media_type = 'image'
+        ORDER BY pm.sort_order ASC
         LIMIT 1
       ) AS image,
 
       COALESCE(
         (
-          SELECT json_agg(media_url ORDER BY sort_order ASC)
-          FROM provider_media
-          WHERE provider_id = p.id AND media_type = 'image'
+          SELECT json_agg(
+            CASE
+              WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
+              WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
+              ELSE '/uploads/providers/' || pm.media_url
+            END
+            ORDER BY pm.sort_order ASC
+          )
+          FROM provider_media pm
+          WHERE pm.provider_id = p.id AND pm.media_type = 'image'
         ),
         '[]'::json
       ) AS gallery,
 
       COALESCE(
         (
-          SELECT json_agg(media_url ORDER BY sort_order ASC)
-          FROM provider_media
-          WHERE provider_id = p.id AND media_type = 'video'
+          SELECT json_agg(
+            CASE
+              WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
+              WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
+              ELSE '/uploads/providers/' || pm.media_url
+            END
+            ORDER BY pm.sort_order ASC
+          )
+          FROM provider_media pm
+          WHERE pm.provider_id = p.id AND pm.media_type = 'video'
         ),
         '[]'::json
       ) AS videos,
@@ -211,18 +230,34 @@ async function getProviderByPublicId(publicId) {
 
       COALESCE(
         (
-          SELECT json_agg(media_url ORDER BY sort_order ASC)
-          FROM provider_media
-          WHERE provider_id = p.id AND media_type = 'image'
+          SELECT json_agg(
+            CASE
+              WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
+              WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
+              ELSE '/uploads/providers/' || pm.media_url
+            END
+            ORDER BY pm.sort_order ASC
+          )
+          FROM provider_media pm
+          WHERE pm.provider_id = p.id
+            AND pm.media_type = 'image'
         ),
         '[]'::json
       ) AS gallery,
 
       COALESCE(
         (
-          SELECT json_agg(media_url ORDER BY sort_order ASC)
-          FROM provider_media
-          WHERE provider_id = p.id AND media_type = 'video'
+          SELECT json_agg(
+            CASE
+              WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
+              WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
+              ELSE '/uploads/providers/' || pm.media_url
+            END
+            ORDER BY pm.sort_order ASC
+          )
+          FROM provider_media pm
+          WHERE pm.provider_id = p.id
+            AND pm.media_type = 'video'
         ),
         '[]'::json
       ) AS videos,
@@ -263,11 +298,68 @@ async function getProviderByInternalId(providerId) {
       p.profile_title AS "profileTitle",
       p.city,
       p.country,
+      p.category,
       p.price,
       p.age_verified AS "ageVerified",
       p.age_verification_status AS "ageVerificationStatus",
       p.age_verified_at AS "ageVerifiedAt",
       p.is_published AS "isPublished",
+      p.age,
+      p.nationality,
+      p.hair,
+      p.eyes,
+      p.height,
+      p.phone,
+      p.email,
+      p.whatsapp_enabled AS "whatsappEnabled",
+      p.telegram_enabled AS "telegramEnabled",
+      p.telegram_username AS "telegramUsername",
+      p.service_mode AS "serviceMode",
+      p.plan_id AS "planId",
+      p.plan_duration AS "planDuration",
+      p.payment_status AS "paymentStatus",
+
+      COALESCE(
+        (
+          SELECT json_agg(area_name ORDER BY area_name)
+          FROM provider_locations
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS location,
+
+      COALESCE(
+        (
+          SELECT json_agg(location_type ORDER BY location_type)
+          FROM provider_location_types
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS "locationType",
+
+      COALESCE(
+        (
+          SELECT json_agg(
+            json_build_object(
+              'name', service_name,
+              'isFeatured', is_featured
+            )
+            ORDER BY created_at ASC
+          )
+          FROM provider_services
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS services,
+
+      COALESCE(
+        (
+          SELECT json_object_agg(rate_label, amount)
+          FROM provider_rates
+          WHERE provider_id = p.id
+        ),
+        '{}'::json
+      ) AS rates,
 
       COALESCE(
         (
@@ -280,7 +372,8 @@ async function getProviderByInternalId(providerId) {
             ORDER BY pm.sort_order ASC
           )
           FROM provider_media pm
-          WHERE pm.provider_id = p.id AND pm.media_type = 'image'
+          WHERE pm.provider_id = p.id
+            AND pm.media_type = 'image'
         ),
         '[]'::json
       ) AS gallery,
@@ -296,13 +389,29 @@ async function getProviderByInternalId(providerId) {
             ORDER BY pm.sort_order ASC
           )
           FROM provider_media pm
-          WHERE pm.provider_id = p.id AND pm.media_type = 'video'
+          WHERE pm.provider_id = p.id
+            AND pm.media_type = 'video'
         ),
         '[]'::json
-      ) AS videos
+      ) AS videos,
+
+      COALESCE(
+        (
+          SELECT json_agg(badge_label ORDER BY created_at ASC)
+          FROM provider_badges
+          WHERE provider_id = p.id
+        ),
+        '[]'::json
+      ) AS "trustBadges",
+
+      COALESCE(
+        to_json(string_to_array(COALESCE(p.bio, ''), E'\\n\\n')),
+        '[]'::json
+      ) AS "descriptionParagraphs"
 
     FROM providers p
     WHERE p.id = $1
+      AND p.is_active = true
     LIMIT 1;
   `;
 
@@ -398,8 +507,14 @@ async function createProvider(payload) {
         if (!serviceName) continue;
 
         await client.query(
-          `INSERT INTO provider_services (provider_id, service_name, is_featured)
-           VALUES ($1, $2, $3)`,
+          `
+          INSERT INTO provider_services (
+            provider_id,
+            service_name,
+            is_featured
+          )
+          VALUES ($1, $2, $3)
+          `,
           [provider.id, serviceName, isFeatured]
         );
       }
@@ -414,8 +529,14 @@ async function createProvider(payload) {
           !Number.isNaN(Number(amount))
         ) {
           await client.query(
-            `INSERT INTO provider_rates (provider_id, rate_label, amount)
-             VALUES ($1, $2, $3)`,
+            `
+            INSERT INTO provider_rates (
+              provider_id,
+              rate_label,
+              amount
+            )
+            VALUES ($1, $2, $3)
+            `,
             [provider.id, label, Number(amount)]
           );
         }
@@ -425,9 +546,15 @@ async function createProvider(payload) {
     if (Array.isArray(payload.locations)) {
       for (const areaName of payload.locations) {
         if (!areaName) continue;
+
         await client.query(
-          `INSERT INTO provider_locations (provider_id, area_name)
-           VALUES ($1, $2)`,
+          `
+          INSERT INTO provider_locations (
+            provider_id,
+            area_name
+          )
+          VALUES ($1, $2)
+          `,
           [provider.id, areaName]
         );
       }
@@ -436,9 +563,15 @@ async function createProvider(payload) {
     if (Array.isArray(payload.locationType)) {
       for (const locationType of payload.locationType) {
         if (!locationType) continue;
+
         await client.query(
-          `INSERT INTO provider_location_types (provider_id, location_type)
-           VALUES ($1, $2)`,
+          `
+          INSERT INTO provider_location_types (
+            provider_id,
+            location_type
+          )
+          VALUES ($1, $2)
+          `,
           [provider.id, locationType]
         );
       }
@@ -446,9 +579,18 @@ async function createProvider(payload) {
 
     if (Array.isArray(payload.gallery)) {
       for (let i = 0; i < payload.gallery.length; i += 1) {
+        if (!payload.gallery[i]) continue;
+
         await client.query(
-          `INSERT INTO provider_media (provider_id, media_type, media_url, sort_order)
-           VALUES ($1, 'image', $2, $3)`,
+          `
+          INSERT INTO provider_media (
+            provider_id,
+            media_type,
+            media_url,
+            sort_order
+          )
+          VALUES ($1, 'image', $2, $3)
+          `,
           [provider.id, payload.gallery[i], i]
         );
       }
@@ -456,9 +598,18 @@ async function createProvider(payload) {
 
     if (Array.isArray(payload.videos)) {
       for (let i = 0; i < payload.videos.length; i += 1) {
+        if (!payload.videos[i]) continue;
+
         await client.query(
-          `INSERT INTO provider_media (provider_id, media_type, media_url, sort_order)
-           VALUES ($1, 'video', $2, $3)`,
+          `
+          INSERT INTO provider_media (
+            provider_id,
+            media_type,
+            media_url,
+            sort_order
+          )
+          VALUES ($1, 'video', $2, $3)
+          `,
           [provider.id, payload.videos[i], i]
         );
       }
@@ -467,9 +618,15 @@ async function createProvider(payload) {
     if (Array.isArray(payload.trustBadges)) {
       for (const badge of payload.trustBadges) {
         if (!badge) continue;
+
         await client.query(
-          `INSERT INTO provider_badges (provider_id, badge_label)
-           VALUES ($1, $2)`,
+          `
+          INSERT INTO provider_badges (
+            provider_id,
+            badge_label
+          )
+          VALUES ($1, $2)
+          `,
           [provider.id, badge]
         );
       }
@@ -512,12 +669,14 @@ async function updateProvider(providerId, payload) {
         bio = $16,
         email = $17,
         plan_id = $18,
-        plan_duration = $19
+        plan_duration = $19,
+        updated_at = NOW()
       WHERE id = $20
+        AND is_active = true
       RETURNING id;
     `;
 
-    await client.query(updateQuery, [
+    const { rows } = await client.query(updateQuery, [
       payload.name,
       payload.profileTitle,
       payload.city,
@@ -540,6 +699,11 @@ async function updateProvider(providerId, payload) {
       providerId,
     ]);
 
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
     await client.query(`DELETE FROM provider_services WHERE provider_id = $1`, [providerId]);
     await client.query(`DELETE FROM provider_rates WHERE provider_id = $1`, [providerId]);
     await client.query(`DELETE FROM provider_locations WHERE provider_id = $1`, [providerId]);
@@ -561,8 +725,14 @@ async function updateProvider(providerId, payload) {
         if (!serviceName) continue;
 
         await client.query(
-          `INSERT INTO provider_services (provider_id, service_name, is_featured)
-           VALUES ($1, $2, $3)`,
+          `
+          INSERT INTO provider_services (
+            provider_id,
+            service_name,
+            is_featured
+          )
+          VALUES ($1, $2, $3)
+          `,
           [providerId, serviceName, isFeatured]
         );
       }
@@ -577,8 +747,14 @@ async function updateProvider(providerId, payload) {
           !Number.isNaN(Number(amount))
         ) {
           await client.query(
-            `INSERT INTO provider_rates (provider_id, rate_label, amount)
-             VALUES ($1, $2, $3)`,
+            `
+            INSERT INTO provider_rates (
+              provider_id,
+              rate_label,
+              amount
+            )
+            VALUES ($1, $2, $3)
+            `,
             [providerId, label, Number(amount)]
           );
         }
@@ -588,9 +764,15 @@ async function updateProvider(providerId, payload) {
     if (Array.isArray(payload.locations)) {
       for (const areaName of payload.locations) {
         if (!areaName) continue;
+
         await client.query(
-          `INSERT INTO provider_locations (provider_id, area_name)
-           VALUES ($1, $2)`,
+          `
+          INSERT INTO provider_locations (
+            provider_id,
+            area_name
+          )
+          VALUES ($1, $2)
+          `,
           [providerId, areaName]
         );
       }
@@ -599,9 +781,15 @@ async function updateProvider(providerId, payload) {
     if (Array.isArray(payload.locationType)) {
       for (const locationType of payload.locationType) {
         if (!locationType) continue;
+
         await client.query(
-          `INSERT INTO provider_location_types (provider_id, location_type)
-           VALUES ($1, $2)`,
+          `
+          INSERT INTO provider_location_types (
+            provider_id,
+            location_type
+          )
+          VALUES ($1, $2)
+          `,
           [providerId, locationType]
         );
       }
@@ -609,9 +797,18 @@ async function updateProvider(providerId, payload) {
 
     if (Array.isArray(payload.gallery)) {
       for (let i = 0; i < payload.gallery.length; i += 1) {
+        if (!payload.gallery[i]) continue;
+
         await client.query(
-          `INSERT INTO provider_media (provider_id, media_type, media_url, sort_order)
-           VALUES ($1, 'image', $2, $3)`,
+          `
+          INSERT INTO provider_media (
+            provider_id,
+            media_type,
+            media_url,
+            sort_order
+          )
+          VALUES ($1, 'image', $2, $3)
+          `,
           [providerId, payload.gallery[i], i]
         );
       }
@@ -619,9 +816,18 @@ async function updateProvider(providerId, payload) {
 
     if (Array.isArray(payload.videos)) {
       for (let i = 0; i < payload.videos.length; i += 1) {
+        if (!payload.videos[i]) continue;
+
         await client.query(
-          `INSERT INTO provider_media (provider_id, media_type, media_url, sort_order)
-           VALUES ($1, 'video', $2, $3)`,
+          `
+          INSERT INTO provider_media (
+            provider_id,
+            media_type,
+            media_url,
+            sort_order
+          )
+          VALUES ($1, 'video', $2, $3)
+          `,
           [providerId, payload.videos[i], i]
         );
       }
@@ -818,7 +1024,12 @@ async function getProvidersForAdmin(filters = {}) {
       p.updated_at AS "updatedAt",
 
       (
-        SELECT media_url
+        SELECT
+          CASE
+            WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
+            WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
+            ELSE '/uploads/providers/' || pm.media_url
+          END
         FROM provider_media pm
         WHERE pm.provider_id = p.id
           AND pm.media_type = 'image'
@@ -867,13 +1078,38 @@ async function getProvidersForAdmin(filters = {}) {
 
       COALESCE(
         (
-          SELECT json_agg(pm.media_url ORDER BY pm.sort_order ASC)
+          SELECT json_agg(
+            CASE
+              WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
+              WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
+              ELSE '/uploads/providers/' || pm.media_url
+            END
+            ORDER BY pm.sort_order ASC
+          )
           FROM provider_media pm
           WHERE pm.provider_id = p.id
             AND pm.media_type = 'image'
         ),
         '[]'::json
-      ) AS gallery
+      ) AS gallery,
+
+      COALESCE(
+        (
+          SELECT json_agg(
+            CASE
+              WHEN pm.media_url LIKE '/uploads/%' THEN pm.media_url
+              WHEN pm.media_url LIKE 'uploads/%' THEN '/' || pm.media_url
+              ELSE '/uploads/providers/' || pm.media_url
+            END
+            ORDER BY pm.sort_order ASC
+          )
+          FROM provider_media pm
+          WHERE pm.provider_id = p.id
+            AND pm.media_type = 'video'
+        ),
+        '[]'::json
+      ) AS videos
+
     FROM providers p
     WHERE ${conditions.join(' AND ')}
     ORDER BY p.created_at DESC;
