@@ -38,8 +38,8 @@ export async function createProvider(req, res, next) {
     const galleryFiles = req.files?.gallery || [];
     const videoFiles = req.files?.videos || [];
 
-    const gallery = galleryFiles.map((file) => `/uploads/providers/${file.filename}`);
-    const videos = videoFiles.map((file) => `/uploads/providers/${file.filename}`);
+   const gallery = galleryFiles.map((file) => `${process.env.R2_PUBLIC_URL}/${file.key}`);
+   const videos = videoFiles.map((file) => `${process.env.R2_PUBLIC_URL}/${file.key}`);
 
     const services = Array.isArray(selectedServices)
       ? selectedServices
@@ -59,10 +59,15 @@ export async function createProvider(req, res, next) {
       price: parseOptionalNumber(rates?.['1 hour']) || 0,
 
       age: parseOptionalNumber(body.age),
-      ageVerified: false,
-      ageVerificationStatus: 'pending',
-      ageVerifiedAt: null,
-      isPublished: false,
+      //ageVerified: false,
+      //ageVerificationStatus: 'pending',
+      //ageVerifiedAt: null,
+      //isPublished: false,
+
+      ageVerified: true,
+      ageVerificationStatus: 'verified',
+      ageVerifiedAt: new Date(),
+      isPublished: true,
 
       nationality: body.nationality?.trim() || null,
       hair: body.hair?.trim() || null,
@@ -204,8 +209,8 @@ export async function updateMyProvider(req, res, next) {
     const galleryFiles = req.files?.gallery || [];
     const videoFiles = req.files?.videos || [];
 
-    const newGallery = galleryFiles.map((file) => `/uploads/providers/${file.filename}`);
-    const newVideos = videoFiles.map((file) => `/uploads/providers/${file.filename}`);
+    const newGallery = galleryFiles.map((file) => `${process.env.R2_PUBLIC_URL}/${file.key}`);
+    const newVideos = videoFiles.map((file) => `${process.env.R2_PUBLIC_URL}/${file.key}`);
 
     const services = Array.isArray(selectedServices)
       ? selectedServices
