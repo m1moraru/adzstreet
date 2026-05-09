@@ -17,6 +17,18 @@ function parseOptionalNumber(value) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+function getUploadedFileUrl(file) {
+  const key = file.key || file.location || file.filename;
+
+  if (!key) return null;
+
+  if (String(key).startsWith("http://") || String(key).startsWith("https://")) {
+    return key;
+  }
+
+  return `${process.env.R2_PUBLIC_URL}/${key}`;
+}
+
 export async function createProvider(req, res, next) {
   try {
     console.log('POST /api/providers hit');
@@ -38,8 +50,8 @@ export async function createProvider(req, res, next) {
     const galleryFiles = req.files?.gallery || [];
     const videoFiles = req.files?.videos || [];
 
-   const gallery = galleryFiles.map((file) => `${process.env.R2_PUBLIC_URL}/${file.key}`);
-   const videos = videoFiles.map((file) => `${process.env.R2_PUBLIC_URL}/${file.key}`);
+    const gallery = galleryFiles.map(getUploadedFileUrl).filter(Boolean);
+    const videos = videoFiles.map(getUploadedFileUrl).filter(Boolean);
 
     const services = Array.isArray(selectedServices)
       ? selectedServices
@@ -209,8 +221,8 @@ export async function updateMyProvider(req, res, next) {
     const galleryFiles = req.files?.gallery || [];
     const videoFiles = req.files?.videos || [];
 
-    const newGallery = galleryFiles.map((file) => `${process.env.R2_PUBLIC_URL}/${file.key}`);
-    const newVideos = videoFiles.map((file) => `${process.env.R2_PUBLIC_URL}/${file.key}`);
+    const newGallery = galleryFiles.map(getUploadedFileUrl).filter(Boolean);
+    const newVideos = videoFiles.map(getUploadedFileUrl).filter(Boolean);
 
     const services = Array.isArray(selectedServices)
       ? selectedServices
