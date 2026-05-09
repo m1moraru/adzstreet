@@ -1,19 +1,14 @@
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import multerS3 from 'multer-s3';
+import { S3Client } from '@aws-sdk/client-s3';
+import { randomUUID } from 'crypto';
 
-const uploadDir = path.join(process.cwd(), 'uploads', 'providers');
-
-fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext).replace(/\s+/g, '-').toLowerCase();
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}-${base}${ext}`);
+const r2 = new S3Client({
+  region: 'auto',
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
   },
 });
 
@@ -32,11 +27,27 @@ function fileFilter(_req, file, cb) {
 }
 
 const uploadProviderMedia = multer({
-  storage,
+  storage: multerS3({
+    s3: r2,
+    bucket: process.env.R2_BUCKET,
+    contentType: multerS3.AUTO_CONTENT_TYPE,
+
+    key: (_req, file, cb) => {
+      const isVideo = file.mimetype.startsWith('video/');
+      const folder = isVideo ? 'providers/videos' : 'providers/photos';
+
+      const extension = file.originalname.split('.').pop();
+      const filename = `${folder}/${randomUUID()}.${extension}`;
+
+      cb(null, filename);
+    },
+  }),
+
   fileFilter,
+
   limits: {
     files: 9,
-    fileSize: 50 * 1024 * 1024, // 50MB each
+    fileSize: 50 * 1024 * 1024,
   },
 }).fields([
   { name: 'gallery', maxCount: 6 },
