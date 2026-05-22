@@ -14,6 +14,7 @@ import ageVerificationRoutes from "./routes/ageVerificationRoutes.js";
 import usersRoutes from "./routes/usersRoutes.js";
 import adsRoutes from "./routes/adsRoutes.js";
 import adminAdsRoutes from "./routes/adminAdsRoutes.js";
+import adminUsersRoutes from "./routes/adminUsersRoutes.js";
 
 const app = express();
 
@@ -79,6 +80,7 @@ app.use("/api/ads", adsRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/providers", providerRoutes);
+app.use("/api/admin/users", adminUsersRoutes);
 app.use("/api/admin/auth", adminAuthRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/ads", adminAdsRoutes);
