@@ -11,19 +11,8 @@ import {
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: "uploads/ads",
-  filename: (req, file, cb) => {
-    const uniqueName = `${Date.now()}-${Math.round(
-      Math.random() * 1e9
-    )}-${file.originalname}`;
-
-    cb(null, uniqueName);
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: {
     files: 8,
     fileSize: 5 * 1024 * 1024,
