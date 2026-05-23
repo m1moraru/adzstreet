@@ -818,6 +818,27 @@ export async function updateMyAd(req, res) {
         `,
         [ad.id, deletedPhotoIds]
       );
+
+      await client.query(
+        `
+        UPDATE ad_photos
+        SET is_main = true
+        WHERE id = (
+          SELECT id
+          FROM ad_photos
+          WHERE ad_id = $1
+          ORDER BY sort_order ASC, created_at ASC
+          LIMIT 1
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM ad_photos
+          WHERE ad_id = $1
+            AND is_main = true
+        )
+        `,
+        [ad.id]
+      );
     }
 
     if (normalizedBody.replacePhotos === "true") {
