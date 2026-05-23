@@ -681,10 +681,7 @@ export async function updateMyAd(req, res) {
     }
 
     const { id } = req.params;
-
-    const normalizedBody = {
-      ...req.body,
-    };
+    const normalizedBody = { ...req.body };
 
     ["is_active", "is_published", "is_sold"].forEach((key) => {
       if (normalizedBody[key] === "true") normalizedBody[key] = true;
@@ -793,7 +790,7 @@ export async function updateMyAd(req, res) {
       } catch {
         deletedPhotoIds = deletedPhotoIds
           .split(",")
-          .map((id) => id.trim())
+          .map((photoId) => photoId.trim())
           .filter(Boolean);
       }
     }
@@ -804,7 +801,7 @@ export async function updateMyAd(req, res) {
         SELECT id, image_url
         FROM ad_photos
         WHERE ad_id = $1
-          AND id = ANY($2::int[])
+          AND id = ANY($2::uuid[])
         `,
         [ad.id, deletedPhotoIds]
       );
@@ -817,7 +814,7 @@ export async function updateMyAd(req, res) {
         `
         DELETE FROM ad_photos
         WHERE ad_id = $1
-          AND id = ANY($2::int[])
+          AND id = ANY($2::uuid[])
         `,
         [ad.id, deletedPhotoIds]
       );
