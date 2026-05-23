@@ -17,7 +17,7 @@ export async function uploadToR2(file, folder = "ads") {
 
   await r2.send(
     new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME,
+      Bucket: process.env.R2_BUCKET,
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
