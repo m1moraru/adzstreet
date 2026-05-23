@@ -420,9 +420,13 @@ export async function getAds(req, res) {
 
       FROM ads a
 
-      LEFT JOIN ad_photos p
-        ON p.ad_id = a.id
-        AND p.is_main = true
+      LEFT JOIN LATERAL (
+        SELECT image_url
+        FROM ad_photos
+        WHERE ad_id = a.id
+        ORDER BY is_main DESC, sort_order ASC, created_at ASC
+        LIMIT 1
+      ) p ON true
 
       WHERE ${conditions.join(" AND ")}
 
@@ -539,9 +543,13 @@ export async function getMyAds(req, res) {
         a.*,
         p.image_url AS main_photo
       FROM ads a
-      LEFT JOIN ad_photos p
-        ON p.ad_id = a.id
-        AND p.is_main = true
+      LEFT JOIN LATERAL (
+        SELECT image_url
+        FROM ad_photos
+        WHERE ad_id = a.id
+        ORDER BY is_main DESC, sort_order ASC, created_at ASC
+        LIMIT 1
+      ) p ON true
       WHERE a.user_id = $1
       ORDER BY a.created_at DESC
       `,
