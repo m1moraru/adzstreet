@@ -795,6 +795,7 @@ export async function updateMyAd(req, res) {
       }
     }
 
+    // DELETE SELECTED PHOTOS
     if (Array.isArray(deletedPhotoIds) && deletedPhotoIds.length > 0) {
       const photosToDelete = await client.query(
         `
@@ -807,7 +808,11 @@ export async function updateMyAd(req, res) {
       );
 
       for (const photo of photosToDelete.rows) {
-        await deleteFromR2(photo.image_url);
+        try {
+          await deleteFromR2(photo.image_url);
+        } catch (r2Err) {
+          console.error("R2 delete failed:", r2Err);
+        }
       }
 
       await client.query(
@@ -817,6 +822,16 @@ export async function updateMyAd(req, res) {
           AND id = ANY($2::uuid[])
         `,
         [ad.id, deletedPhotoIds]
+      );
+
+      // RESET MAIN PHOTO
+      await client.query(
+        `
+        UPDATE ad_photos
+        SET is_main = false
+        WHERE ad_id = $1
+        `,
+        [ad.id]
       );
 
       await client.query(
@@ -830,17 +845,12 @@ export async function updateMyAd(req, res) {
           ORDER BY sort_order ASC, created_at ASC
           LIMIT 1
         )
-        AND NOT EXISTS (
-          SELECT 1
-          FROM ad_photos
-          WHERE ad_id = $1
-            AND is_main = true
-        )
         `,
         [ad.id]
       );
     }
 
+    // REPLACE ALL PHOTOS
     if (normalizedBody.replacePhotos === "true") {
       const oldPhotos = await client.query(
         `
@@ -852,12 +862,23 @@ export async function updateMyAd(req, res) {
       );
 
       for (const photo of oldPhotos.rows) {
-        await deleteFromR2(photo.image_url);
+        try {
+          await deleteFromR2(photo.image_url);
+        } catch (r2Err) {
+          console.error("R2 delete failed:", r2Err);
+        }
       }
 
-      await client.query("DELETE FROM ad_photos WHERE ad_id = $1", [ad.id]);
+      await client.query(
+        `
+        DELETE FROM ad_photos
+        WHERE ad_id = $1
+        `,
+        [ad.id]
+      );
     }
 
+    // ADD NEW PHOTOS
     if (req.files?.length) {
       const existingPhotos = await client.query(
         `
@@ -893,6 +914,44 @@ export async function updateMyAd(req, res) {
       }
     }
 
+    // ENSURE EXACTLY ONE MAIN PHOTO EXISTS
+    const hasMainPhoto = await client.query(
+      `
+      SELECT id
+      FROM ad_photos
+      WHERE ad_id = $1
+        AND is_main = true
+      LIMIT 1
+      `,
+      [ad.id]
+    );
+
+    if (hasMainPhoto.rows.length === 0) {
+      await client.query(
+        `
+        UPDATE ad_photos
+        SET is_main = false
+        WHERE ad_id = $1
+        `,
+        [ad.id]
+      );
+
+      await client.query(
+        `
+        UPDATE ad_photos
+        SET is_main = true
+        WHERE id = (
+          SELECT id
+          FROM ad_photos
+          WHERE ad_id = $1
+          ORDER BY sort_order ASC, created_at ASC
+          LIMIT 1
+        )
+        `,
+        [ad.id]
+      );
+    }
+
     const updatedAd = await client.query(
       `
       SELECT *
@@ -922,7 +981,6 @@ export async function updateMyAd(req, res) {
     client.release();
   }
 }
-
 export async function deleteMyAd(req, res) {
   const client = await pool.connect();
 
