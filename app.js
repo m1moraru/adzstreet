@@ -69,8 +69,6 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-
 app.get("/", (_req, res) => {
   res.send("API is running...");
 });
