@@ -38,7 +38,7 @@ export async function deleteFromR2(imageUrl) {
 
   await r2.send(
     new DeleteObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME,
+      Bucket: process.env.R2_BUCKET,
       Key: key,
     })
   );
