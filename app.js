@@ -14,7 +14,7 @@ import ageVerificationRoutes from "./routes/ageVerificationRoutes.js";
 import usersRoutes from "./routes/usersRoutes.js";
 import adsRoutes from "./routes/adsRoutes.js";
 import adminAdsRoutes from "./routes/adminAdsRoutes.js";
-import adminUsersRoutes from "./routes/adminUsersRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
 
 const app = express();
 
@@ -69,6 +69,8 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
 app.get("/", (_req, res) => {
   res.send("API is running...");
 });
@@ -78,12 +80,12 @@ app.use("/api/ads", adsRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/providers", providerRoutes);
-app.use("/api/admin/users", adminUsersRoutes);
 app.use("/api/admin/auth", adminAuthRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/ads", adminAdsRoutes);
 app.use("/api", ageVerificationRoutes);
 app.use("/api", publicRoutes);
+app.use("/api/messages", messageRoutes);
 
 app.use((error, req, res, next) => {
   console.error("Unhandled error:", error);
