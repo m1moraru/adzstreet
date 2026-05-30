@@ -10,8 +10,8 @@ export async function startConversation(req, res) {
     }
 
     const adResult = await pool.query(
-      `SELECT id, user_id AS seller_id, title FROM ads WHERE id = $1`,
-      [adId]
+      `SELECT id, user_id AS seller_id, title FROM ads WHERE public_id = $1`,
+      [Number(adId)]
     );
 
     if (adResult.rows.length === 0) {
@@ -32,7 +32,7 @@ export async function startConversation(req, res) {
       DO UPDATE SET updated_at = CURRENT_TIMESTAMP
       RETURNING *
       `,
-      [adId, buyerId, ad.seller_id]
+      [ad.id, buyerId, ad.seller_id]
     );
 
     const conversation = conversationResult.rows[0];
