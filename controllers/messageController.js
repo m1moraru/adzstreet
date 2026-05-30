@@ -1,7 +1,7 @@
 import pool from "../config/db.js";
 
 export async function startConversation(req, res) {
-  
+
   if (!req.user) {
     return res.status(401).json({ message: "Not authenticated" });
   }
@@ -57,7 +57,13 @@ export async function startConversation(req, res) {
     });
   } catch (err) {
     console.error("Start conversation error:", err);
-    res.status(500).json({ message: "Server error" });
+
+    return res.status(500).json({
+      message: err.message,
+      code: err.code,
+      detail: err.detail,
+      constraint: err.constraint,
+    });
   }
 }
 
