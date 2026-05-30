@@ -49,7 +49,18 @@ export async function login(req, res, next) {
     );
 
     if (userResult.rows.length > 0) {
-      const user = userResult.rows[0];
+      
+      const dbUser = userResult.rows[0];
+
+      const user = {
+        id: dbUser.id,
+        full_name: dbUser.full_name,
+        name: dbUser.full_name,
+        email: dbUser.email,
+        password_hash: dbUser.password_hash,
+        role: dbUser.role || "user",
+        account_type: "user",
+      };
 
       const passwordMatches = await bcrypt.compare(
         password,
