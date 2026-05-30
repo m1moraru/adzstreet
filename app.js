@@ -40,13 +40,15 @@ app.use(ageVerificationWebhookRoutes);
 
 app.use(
   session({
+    name: "connect.sid",
     secret: process.env.SESSION_SECRET || "change_this_secret",
     resave: false,
     saveUninitialized: false,
+    proxy: true,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: true,
+      sameSite: "none",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },
   })
