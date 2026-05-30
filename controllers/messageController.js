@@ -1,6 +1,11 @@
 import pool from "../config/db.js";
 
 export async function startConversation(req, res) {
+  
+  if (!req.user) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
   try {
     const buyerId = req.user.id;
     const { adId, message } = req.body;
