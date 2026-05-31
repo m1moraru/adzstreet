@@ -9,6 +9,7 @@ import publicRoutes from "./routes/publicRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import adminAuthRoutes from "./routes/adminAuthRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import adminUsersRoutes from "./routes/adminUsersRoutes.js";
 import ageVerificationWebhookRoutes from "./routes/ageVerificationWebhook.routes.js";
 import ageVerificationRoutes from "./routes/ageVerificationRoutes.js";
 import usersRoutes from "./routes/usersRoutes.js";
@@ -16,7 +17,6 @@ import adsRoutes from "./routes/adsRoutes.js";
 import adminAdsRoutes from "./routes/adminAdsRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import notificationsRoute from "./routes/notificationsRoute.js";
-
 
 const app = express();
 
@@ -70,9 +70,12 @@ app.use("/api/ads", adsRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/providers", providerRoutes);
+
 app.use("/api/admin/auth", adminAuthRoutes);
+app.use("/api/admin/users", adminUsersRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/ads", adminAdsRoutes);
+
 app.use("/api", ageVerificationRoutes);
 app.use("/api", publicRoutes);
 app.use("/api/messages", messageRoutes);
