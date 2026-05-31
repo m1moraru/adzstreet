@@ -4,7 +4,10 @@ export async function getAdminUsers(req, res) {
   try {
     const { page = 1, limit = 20, search = "" } = req.query;
 
-    const offset = (Number(page) - 1) * Number(limit);
+    const safePage = Math.max(Number(page) || 1, 1);
+    const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+    const offset = (safePage - 1) * safeLimit;
+
     const values = [];
     const conditions = [];
 
@@ -14,12 +17,13 @@ export async function getAdminUsers(req, res) {
         (
           full_name ILIKE $${values.length}
           OR email ILIKE $${values.length}
+          OR provider ILIKE $${values.length}
           OR role ILIKE $${values.length}
         )
       `);
     }
 
-    values.push(Number(limit));
+    values.push(safeLimit);
     const limitIndex = values.length;
 
     values.push(offset);
@@ -35,6 +39,8 @@ export async function getAdminUsers(req, res) {
         role,
         is_verified,
         is_suspended,
+        suspended_at,
+        suspension_reason,
         created_at,
         updated_at
       FROM users
@@ -55,7 +61,7 @@ export async function getAdminUsers(req, res) {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch users",
+      message: err.message || "Failed to fetch users",
     });
   }
 }
@@ -68,6 +74,7 @@ export async function updateAdminUser(req, res) {
       role: "role",
       is_verified: "is_verified",
       is_suspended: "is_suspended",
+      suspension_reason: "suspension_reason",
     };
 
     const normalizedBody = { ...req.body };
@@ -87,6 +94,24 @@ export async function updateAdminUser(req, res) {
       }
     }
 
+    if (normalizedBody.is_suspended === true) {
+      updates.push("suspended_at = NOW()");
+
+      if (
+        normalizedBody.suspension_reason === undefined ||
+        normalizedBody.suspension_reason === null ||
+        String(normalizedBody.suspension_reason).trim() === ""
+      ) {
+        values.push("Suspended by admin");
+        updates.push(`suspension_reason = $${values.length}`);
+      }
+    }
+
+    if (normalizedBody.is_suspended === false) {
+      updates.push("suspended_at = NULL");
+      updates.push("suspension_reason = NULL");
+    }
+
     if (updates.length === 0) {
       return res.status(400).json({
         success: false,
@@ -102,7 +127,18 @@ export async function updateAdminUser(req, res) {
       SET ${updates.join(", ")},
           updated_at = NOW()
       WHERE id::text = $${values.length}
-      RETURNING id, full_name, email, provider, role, is_verified, is_suspended, created_at, updated_at
+      RETURNING
+        id,
+        full_name,
+        email,
+        provider,
+        role,
+        is_verified,
+        is_suspended,
+        suspended_at,
+        suspension_reason,
+        created_at,
+        updated_at
       `,
       values
     );
@@ -124,7 +160,7 @@ export async function updateAdminUser(req, res) {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to update user",
+      message: err.message || "Failed to update user",
     });
   }
 }
@@ -158,7 +194,7 @@ export async function deleteAdminUser(req, res) {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to delete user",
+      message: err.message || "Failed to delete user",
     });
   }
 }
