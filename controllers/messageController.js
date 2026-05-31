@@ -176,6 +176,13 @@ export async function sendMessage(req, res) {
       return res.status(403).json({ message: "Access denied" });
     }
 
+    const conversation = access.rows[0];
+
+    const recipientId =
+      conversation.buyer_id === userId
+        ? conversation.seller_id
+        : conversation.buyer_id;
+
     const result = await pool.query(
       `
       INSERT INTO messages (conversation_id, sender_id, body)
@@ -192,6 +199,26 @@ export async function sendMessage(req, res) {
       WHERE id = $1
       `,
       [conversationId]
+    );
+
+    await pool.query(
+      `
+      INSERT INTO notifications (
+        user_id,
+        type,
+        title,
+        body,
+        link
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      `,
+      [
+        recipientId,
+        "message",
+        "New message",
+        message.trim().slice(0, 120),
+        `/messages/${conversationId}`,
+      ]
     );
 
     res.status(201).json(result.rows[0]);
