@@ -15,6 +15,8 @@ import usersRoutes from "./routes/usersRoutes.js";
 import adsRoutes from "./routes/adsRoutes.js";
 import adminAdsRoutes from "./routes/adminAdsRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
+import notificationsRoute from "./routes/notificationsRoute.js";
+
 
 const app = express();
 
@@ -74,6 +76,7 @@ app.use("/api/admin/ads", adminAdsRoutes);
 app.use("/api", ageVerificationRoutes);
 app.use("/api", publicRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/notifications", notificationsRoute);
 
 app.use((error, req, res, next) => {
   console.error("Unhandled error:", error);
