@@ -700,7 +700,7 @@ export async function updateMyAd(req, res) {
 
     const adCheck = await client.query(
       `
-      SELECT id, category
+      SELECT id, category, price_text
       FROM ads
       WHERE id::text = $1
         AND user_id = $2
@@ -720,6 +720,31 @@ export async function updateMyAd(req, res) {
 
     const ad = adCheck.rows[0];
 
+    const incomingPrice =
+      normalizedBody.price_text ??
+      normalizedBody.priceText ??
+      normalizedBody.price;
+
+    if (incomingPrice !== undefined) {
+      const oldPriceNumber = Number(
+        String(ad.price_text || "").replace(/[^\d]/g, "")
+      );
+
+      const newPriceNumber = Number(
+        String(incomingPrice || "").replace(/[^\d]/g, "")
+      );
+
+      if (
+        oldPriceNumber > 0 &&
+        newPriceNumber > 0 &&
+        newPriceNumber < oldPriceNumber
+      ) {
+        normalizedBody.previous_price_text = ad.price_text;
+      } else {
+        normalizedBody.previous_price_text = null;
+      }
+    }
+
     const baseFields = {
       title: "title",
       description: "description",
@@ -731,6 +756,7 @@ export async function updateMyAd(req, res) {
       price: "price_text",
       priceText: "price_text",
       price_text: "price_text",
+      previous_price_text: "previous_price_text",
       is_active: "is_active",
       is_published: "is_published",
       is_sold: "is_sold",
@@ -989,6 +1015,7 @@ export async function updateMyAd(req, res) {
     client.release();
   }
 }
+
 export async function deleteMyAd(req, res) {
   const client = await pool.connect();
 
