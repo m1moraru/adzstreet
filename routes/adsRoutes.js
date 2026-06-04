@@ -5,6 +5,7 @@ import {
   getAds,
   getAdById,
   getMyAds,
+  getRelatedAds,
   updateMyAd,
   deleteMyAd,
 } from "../controllers/adsController.js";
@@ -28,6 +29,8 @@ router.patch("/:id", upload.array("photos", 8), updateMyAd);
 router.delete("/:id", deleteMyAd);
 
 router.get("/", getAds);
+
+router.get("/ads/related", getRelatedAds);
 
 router.get("/:id", getAdById);
 
