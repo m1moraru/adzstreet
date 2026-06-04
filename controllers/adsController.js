@@ -449,6 +449,71 @@ export async function getAds(req, res) {
   }
 }
 
+export async function getRelatedAds(req, res) {
+  try {
+    const {
+      category,
+      subcategory,
+      exclude,
+      limit = 8,
+    } = req.query;
+
+    if (!category) {
+      return res.status(400).json({
+        message: "Category is required",
+      });
+    }
+
+    const values = [category];
+    const conditions = [
+      "a.category = $1",
+      "a.is_active = true",
+      "a.is_published = true",
+      "a.is_sold = false",
+    ];
+
+    if (exclude) {
+      values.push(exclude);
+      conditions.push(`a.id::text != $${values.length}`);
+    }
+
+    values.push(Number(limit));
+    const limitIndex = values.length;
+
+    const result = await pool.query(
+      `
+      SELECT
+        a.id,
+        a.public_id,
+        a.category,
+        a.title,
+        a.city,
+        a.country,
+        a.price_text,
+        a.created_at,
+        p.image_url AS main_photo
+      FROM ads a
+      LEFT JOIN ad_photos p
+        ON p.ad_id = a.id
+        AND p.is_main = true
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY a.created_at DESC
+      LIMIT $${limitIndex}
+      `,
+      values
+    );
+
+    return res.status(200).json(result.rows);
+  } catch (err) {
+    console.error("Related ads error:", err);
+
+    return res.status(500).json({
+      message: "Failed to fetch related ads",
+      error: err.message,
+    });
+  }
+}
+
 export async function getAdById(req, res) {
   try {
     const { id } = req.params;
