@@ -24,13 +24,13 @@ router.post("/", upload.array("photos", 8), createAd);
 
 router.get("/my-ads", getMyAds);
 
+router.get("/related", getRelatedAds);
+
 router.patch("/:id", upload.array("photos", 8), updateMyAd);
 
 router.delete("/:id", deleteMyAd);
 
 router.get("/", getAds);
-
-router.get("/ads/related", getRelatedAds);
 
 router.get("/:id", getAdById);
 
