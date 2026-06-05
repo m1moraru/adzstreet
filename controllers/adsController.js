@@ -805,11 +805,13 @@ export async function updateMyAd(req, res) {
       if (
         oldPriceNumber > 0 &&
         newPriceNumber > 0 &&
-        newPriceNumber < oldPriceNumber
+        newPriceNumber !== oldPriceNumber
       ) {
-        normalizedBody.previous_price_text = ad.price_text;
-      } else {
-        normalizedBody.previous_price_text = null;
+        if (newPriceNumber < oldPriceNumber) {
+          normalizedBody.previous_price_text = ad.price_text;
+        } else {
+          normalizedBody.previous_price_text = null;
+        }
       }
     }
 
