@@ -227,3 +227,32 @@ export async function sendMessage(req, res) {
     res.status(500).json({ message: "Server error" });
   }
 }
+
+export async function markConversationRead(req, res) {
+  try {
+    const { conversationId } = req.params;
+
+    await pool.query(
+      `
+      UPDATE messages
+      SET is_read = true
+      WHERE conversation_id = $1
+        AND sender_id != $2
+        AND is_read = false
+      `,
+      [conversationId, req.user.id]
+    );
+
+    return res.json({
+      success: true,
+      message: "Conversation marked as read",
+    });
+  } catch (err) {
+    console.error("Mark conversation read error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to mark conversation as read",
+    });
+  }
+}
