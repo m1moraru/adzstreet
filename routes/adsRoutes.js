@@ -5,10 +5,12 @@ import {
   getAds,
   getAdById,
   getMyAds,
+  reportAd,
   getRelatedAds,
   updateMyAd,
   deleteMyAd,
 } from "../controllers/adsController.js";
+import { requireAuth } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -23,6 +25,8 @@ const upload = multer({
 router.post("/", upload.array("photos", 8), createAd);
 
 router.get("/my-ads", getMyAds);
+
+router.post("/:id/report",requireAuth, reportAd);
 
 router.get("/related", getRelatedAds);
 

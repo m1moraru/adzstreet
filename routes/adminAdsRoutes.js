@@ -3,6 +3,8 @@ import express from "express";
 import {
   getAdminAds,
   getAdminAdsStats,
+  getReportedAds,
+  deleteAdReport,
   updateAdminAd,
   deleteAdminAd,
 } from "../controllers/adminAdsController.js";
@@ -10,6 +12,10 @@ import {
 const router = express.Router();
 
 router.get("/stats", getAdminAdsStats);
+
+router.get("/reports", getReportedAds);
+
+router.delete("/reports/:reportId", deleteAdReport);
 
 router.get("/", getAdminAds);
 
