@@ -230,6 +230,7 @@ export async function sendMessage(req, res) {
 
 export async function markConversationRead(req, res) {
   try {
+    const userId = req.user.id;
     const { conversationId } = req.params;
 
     await pool.query(
@@ -240,7 +241,27 @@ export async function markConversationRead(req, res) {
         AND sender_id != $2
         AND is_read = false
       `,
-      [conversationId, req.user.id]
+      [conversationId, userId]
+    );
+
+    await pool.query(
+      `
+      UPDATE notifications
+      SET read_at = NOW()
+      WHERE user_id = $1
+        AND read_at IS NULL
+        AND (
+          link = $2
+          OR link = $3
+          OR link LIKE $4
+        )
+      `,
+      [
+        userId,
+        `/messages/${conversationId}`,
+        `/messages?conversation=${conversationId}`,
+        `%${conversationId}%`,
+      ]
     );
 
     return res.json({
