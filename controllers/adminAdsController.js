@@ -65,6 +65,67 @@ export async function getAdminAdsStats(req, res) {
   }
 }
 
+export async function getReportedAds(req, res) {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        r.id AS report_id,
+        r.reason,
+        r.message,
+        r.created_at AS reported_at,
+
+        reporter.id AS reporter_id,
+        reporter.full_name AS reporter_name,
+        reporter.email AS reporter_email,
+
+        a.id AS ad_id,
+        a.public_id,
+        a.title,
+        a.category,
+        a.city,
+        a.country,
+        a.price_text,
+        a.is_active,
+        a.is_published,
+        a.is_sold,
+        a.created_at AS ad_created_at,
+
+        owner.id AS owner_id,
+        owner.full_name AS owner_name,
+        owner.email AS owner_email,
+
+        p.image_url AS main_photo
+      FROM ad_reports r
+      JOIN ads a ON a.id = r.ad_id
+      LEFT JOIN users reporter ON reporter.id = r.user_id
+      LEFT JOIN users owner ON owner.id = a.user_id
+      LEFT JOIN LATERAL (
+        SELECT image_url
+        FROM ad_photos
+        WHERE ad_id = a.id
+        ORDER BY is_main DESC, sort_order ASC, created_at ASC
+        LIMIT 1
+      ) p ON true
+      ORDER BY r.created_at DESC
+      `
+    );
+
+    return res.json({
+      success: true,
+      reports: result.rows,
+    });
+  } catch (err) {
+    console.error("Get reported ads error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch reported ads",
+      error: err.message,
+    });
+  }
+}
+
 export async function getAdminAds(req, res) {
   try {
     const { page = 1, limit = 20 } = req.query;
@@ -237,5 +298,40 @@ export async function deleteAdminAd(req, res) {
     });
   } finally {
     client.release();
+  }
+}
+
+export async function deleteAdReport(req, res) {
+  try {
+    const { reportId } = req.params;
+
+    const result = await pool.query(
+      `
+      DELETE FROM ad_reports
+      WHERE id::text = $1
+      RETURNING id
+      `,
+      [reportId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Report not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Report dismissed",
+    });
+  } catch (err) {
+    console.error("Delete ad report error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to dismiss report",
+      error: err.message,
+    });
   }
 }

@@ -198,3 +198,64 @@ export async function deleteAdminUser(req, res) {
     });
   }
 }
+
+export async function getReportedAds(req, res) {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        r.id AS report_id,
+        r.reason,
+        r.message,
+        r.created_at AS reported_at,
+
+        reporter.id AS reporter_id,
+        reporter.full_name AS reporter_name,
+        reporter.email AS reporter_email,
+
+        a.id AS ad_id,
+        a.public_id,
+        a.title,
+        a.category,
+        a.city,
+        a.country,
+        a.price_text,
+        a.is_active,
+        a.is_published,
+        a.is_sold,
+        a.created_at AS ad_created_at,
+
+        owner.id AS owner_id,
+        owner.full_name AS owner_name,
+        owner.email AS owner_email,
+
+        p.image_url AS main_photo
+      FROM ad_reports r
+      JOIN ads a ON a.id = r.ad_id
+      LEFT JOIN users reporter ON reporter.id = r.user_id
+      LEFT JOIN users owner ON owner.id = a.user_id
+      LEFT JOIN LATERAL (
+        SELECT image_url
+        FROM ad_photos
+        WHERE ad_id = a.id
+        ORDER BY is_main DESC, sort_order ASC, created_at ASC
+        LIMIT 1
+      ) p ON true
+      ORDER BY r.created_at DESC
+      `
+    );
+
+    return res.json({
+      success: true,
+      reports: result.rows,
+    });
+  } catch (err) {
+    console.error("Get reported ads error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch reported ads",
+      error: err.message,
+    });
+  }
+}

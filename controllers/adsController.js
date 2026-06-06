@@ -608,7 +608,11 @@ export async function getMyAds(req, res) {
       `
       SELECT
         a.*,
-        p.image_url AS main_photo
+        p.image_url AS main_photo,
+        COALESCE(r.report_count, 0)::int AS report_count,
+        r.latest_report_reason,
+        r.latest_report_message,
+        r.latest_report_created_at
       FROM ads a
       LEFT JOIN LATERAL (
         SELECT image_url
@@ -617,6 +621,33 @@ export async function getMyAds(req, res) {
         ORDER BY is_main DESC, sort_order ASC, created_at ASC
         LIMIT 1
       ) p ON true
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*) AS report_count,
+          (
+            SELECT reason
+            FROM ad_reports
+            WHERE ad_id = a.id
+            ORDER BY created_at DESC
+            LIMIT 1
+          ) AS latest_report_reason,
+          (
+            SELECT message
+            FROM ad_reports
+            WHERE ad_id = a.id
+            ORDER BY created_at DESC
+            LIMIT 1
+          ) AS latest_report_message,
+          (
+            SELECT created_at
+            FROM ad_reports
+            WHERE ad_id = a.id
+            ORDER BY created_at DESC
+            LIMIT 1
+          ) AS latest_report_created_at
+        FROM ad_reports
+        WHERE ad_id = a.id
+      ) r ON true
       WHERE a.user_id = $1
       ORDER BY a.created_at DESC
       `,
@@ -633,6 +664,64 @@ export async function getMyAds(req, res) {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch user ads",
+    });
+  }
+}
+
+export async function reportAd(req, res) {
+  try {
+    const { id } = req.params;
+    const { reason, message } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: "Report reason is required",
+      });
+    }
+
+    const adResult = await pool.query(
+      `
+      SELECT id
+      FROM ads
+      WHERE public_id::text = $1
+         OR id::text = $1
+      LIMIT 1
+      `,
+      [id]
+    );
+
+    if (adResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Ad not found",
+      });
+    }
+
+    await pool.query(
+      `
+      INSERT INTO ad_reports (
+        ad_id,
+        user_id,
+        reason,
+        message,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, NOW())
+      `,
+      [adResult.rows[0].id, req.user.id, reason, message || null]
+    );
+
+    return res.json({
+      success: true,
+      message: "Report submitted successfully",
+    });
+  } catch (err) {
+    console.error("Report ad error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to report ad",
     });
   }
 }
