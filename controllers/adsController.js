@@ -198,7 +198,6 @@ export async function createAd(req, res) {
       name,
       phone,
       email,
-      password,
       city,
       country,
       price,
@@ -206,48 +205,37 @@ export async function createAd(req, res) {
     } = req.body;
 
     if (!category || !name || !email || !city || !country) {
+      await client.query("ROLLBACK");
+
       return res.status(400).json({
         message: "Category, name, email, city, and country are required",
       });
     }
 
     if (!detailInsertQueries[category]) {
+      await client.query("ROLLBACK");
+
       return res.status(400).json({
         message: "Invalid ad category",
       });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-
-    let userId;
+    const normalizedEmail = (req.user?.email || email).toLowerCase().trim();
 
     const existingUser = await client.query(
       "SELECT id FROM users WHERE email = $1",
       [normalizedEmail]
     );
 
-    if (existingUser.rows.length > 0) {
-      userId = existingUser.rows[0].id;
-    } else {
-      if (!password || password.length < 8) {
-        return res.status(400).json({
-          message: "Password must be at least 8 characters",
-        });
-      }
+    if (existingUser.rows.length === 0) {
+      await client.query("ROLLBACK");
 
-      const passwordHash = await bcrypt.hash(password, 10);
-
-      const newUser = await client.query(
-        `
-        INSERT INTO users (full_name, email, password_hash)
-        VALUES ($1, $2, $3)
-        RETURNING id
-        `,
-        [name.trim(), normalizedEmail, passwordHash]
-      );
-
-      userId = newUser.rows[0].id;
+      return res.status(400).json({
+        message: "No user account exists for this email. Please sign up first.",
+      });
     }
+
+    const userId = existingUser.rows[0].id;
 
     const adResult = await client.query(
       `
@@ -338,7 +326,7 @@ export async function createAd(req, res) {
     console.error("Create ad error:", err);
 
     return res.status(500).json({
-      message: "Failed to create ad",
+      message: err.message || "Failed to create ad",
     });
   } finally {
     client.release();
