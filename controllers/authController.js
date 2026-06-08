@@ -14,6 +14,10 @@ function formatAuthUser(user) {
       ageVerificationStatus: user.age_verification_status,
       isPublished: user.is_published,
       accountType: "provider",
+
+      hasProviderAccount: true,
+      hasUserAccount: true,
+      defaultDashboard: "provider",
     };
   }
 
@@ -23,6 +27,10 @@ function formatAuthUser(user) {
     email: user.email,
     role: user.role || "user",
     accountType: "user",
+
+    hasUserAccount: true,
+    hasProviderAccount: false,
+    defaultDashboard: "user",
   };
 }
 
