@@ -71,7 +71,6 @@ export async function login(req, res, next) {
     );
 
     if (userResult.rows.length > 0) {
-      
       const dbUser = userResult.rows[0];
 
       const user = {
@@ -84,10 +83,7 @@ export async function login(req, res, next) {
         account_type: "user",
       };
 
-      const passwordMatches = await bcrypt.compare(
-        password,
-        user.password_hash
-      );
+      const passwordMatches = await bcrypt.compare(password, user.password_hash);
 
       if (!passwordMatches) {
         return res.status(401).json({
@@ -99,13 +95,15 @@ export async function login(req, res, next) {
       return req.logIn(user, (loginError) => {
         if (loginError) return next(loginError);
 
-        req.session.save((sessionError) => {
+        req.session.save(async (sessionError) => {
           if (sessionError) return next(sessionError);
+
+          const formattedUser = await formatAuthUser(user);
 
           return res.status(200).json({
             success: true,
             message: "Login successful",
-            user: formatAuthUser(user),
+            user: formattedUser,
           });
         });
       });
@@ -124,13 +122,15 @@ export async function login(req, res, next) {
       req.logIn(provider, (loginError) => {
         if (loginError) return next(loginError);
 
-        req.session.save((sessionError) => {
+        req.session.save(async (sessionError) => {
           if (sessionError) return next(sessionError);
+
+          const formattedUser = await formatAuthUser(provider);
 
           return res.status(200).json({
             success: true,
             message: "Login successful",
-            user: formatAuthUser(provider),
+            user: formattedUser,
           });
         });
       });
@@ -189,7 +189,7 @@ export function logoutProvider(req, res, next) {
   });
 }
 
-export function getCurrentProvider(req, res) {
+export async function getCurrentProvider(req, res) {
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -199,6 +199,6 @@ export function getCurrentProvider(req, res) {
 
   return res.status(200).json({
     success: true,
-    user: formatAuthUser(req.user),
+    user: await formatAuthUser(req.user),
   });
 }
