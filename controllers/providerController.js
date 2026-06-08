@@ -31,15 +31,29 @@ function getUploadedFileUrl(file) {
 
 export async function createProvider(req, res, next) {
   try {
-    console.log('POST /api/providers hit');
-    console.log('body:', req.body);
-    console.log('files:', req.files);
+    console.log("POST /api/providers hit");
+    console.log("body:", req.body);
+    console.log("files:", req.files);
 
     const body = req.body;
 
-    const passwordHash = body.password
-      ? await bcrypt.hash(body.password, 10)
-      : null;
+    const normalizedEmail = body.email?.toLowerCase().trim();
+
+    if (!normalizedEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    if (!body.password || body.password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(body.password, 10);
 
     const starredServices = parseJsonField(body.starredServices, []);
     const selectedServices = parseJsonField(body.selectedServices, []);
@@ -50,116 +64,151 @@ export async function createProvider(req, res, next) {
     const galleryFiles = req.files?.gallery || [];
     const videoFiles = req.files?.videos || [];
 
-    const gallery = galleryFiles.map(getUploadedFileUrl).filter(Boolean);
-    const videos = videoFiles.map(getUploadedFileUrl).filter(Boolean);
+    const gallery = galleryFiles.map(
+      (file) => `/uploads/providers/${file.filename}`
+    );
+
+    const videos = videoFiles.map(
+      (file) => `/uploads/providers/${file.filename}`
+    );
 
     const services = Array.isArray(selectedServices)
       ? selectedServices
-          .filter((serviceName) => typeof serviceName === 'string' && serviceName.trim())
+          .filter((serviceName) => typeof serviceName === "string" && serviceName.trim())
           .map((serviceName) => ({
             name: serviceName.trim(),
             isFeatured: starredServices.includes(serviceName),
           }))
       : [];
 
+    const hourlyRate = parseOptionalNumber(rates?.["1 hour"]);
+
     const payload = {
       name: body.workingName?.trim(),
       profileTitle: body.profileTitle?.trim() || null,
       city: body.city?.trim(),
       country: body.country?.trim(),
-      category: body.category?.trim() || 'Massage Therapist',
-      price: parseOptionalNumber(rates?.['1 hour']) || 0,
-
+      category: body.category?.trim() || "Massage Therapist",
+      price: hourlyRate || 0,
       age: parseOptionalNumber(body.age),
-      //ageVerified: false,
-      //ageVerificationStatus: 'pending',
-      //ageVerifiedAt: null,
-      //isPublished: false,
-
-      ageVerified: true,
-      ageVerificationStatus: 'verified',
-      ageVerifiedAt: new Date(),
-      isPublished: true,
-
       nationality: body.nationality?.trim() || null,
       hair: body.hair?.trim() || null,
       eyes: body.eyes?.trim() || null,
       height: body.height?.trim() || null,
       phone: body.phone?.trim() || null,
-      whatsappEnabled: body.whatsappContact === 'true',
-      telegramEnabled: body.telegramContact === 'true',
+      whatsappEnabled: body.whatsappContact === "true",
+      telegramEnabled: body.telegramContact === "true",
       telegramUsername: body.telegramUsername?.replace("@", "").trim() || null,
-      serviceMode: body.serviceMode || 'in_call',
+      serviceMode: body.serviceMode || "in_call",
       bio: body.description?.trim() || null,
-      email: body.email?.trim() || null,
+      email: normalizedEmail,
       passwordHash,
-      planId: body.planId || 'essential',
-      planDuration: body.planDuration || '7d',
-      paymentStatus: body.paymentStatus || 'pending',
+      planId: body.planId || "essential",
+      planDuration: body.planDuration || "7d",
+      paymentStatus: body.paymentStatus || "pending",
       locations: Array.isArray(locations) ? locations.filter(Boolean).slice(0, 3) : [],
       locationType: Array.isArray(locationType) ? locationType.filter(Boolean) : [],
       services,
       rates,
       gallery,
       videos,
-      trustBadges: ['New profile'],
+      trustBadges: ["New profile"],
     };
 
     if (!payload.name) {
       return res.status(400).json({
         success: false,
-        message: 'Working name is required',
+        message: "Working name is required",
       });
     }
 
     if (!payload.country) {
       return res.status(400).json({
         success: false,
-        message: 'Country is required',
+        message: "Country is required",
       });
     }
 
     if (!payload.city) {
       return res.status(400).json({
         success: false,
-        message: 'City is required',
+        message: "City is required",
       });
     }
 
-    if (body.telegramContact === 'true' && !body.telegramUsername?.trim()) {
+    if (body.telegramContact === "true" && !body.telegramUsername?.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Telegram username is required when Telegram contact is enabled',
+        message: "Telegram username is required when Telegram contact is enabled",
       });
     }
 
-    if (!body.termsAccepted || body.termsAccepted !== 'true') {
+    if (!body.termsAccepted || body.termsAccepted !== "true") {
       return res.status(400).json({
         success: false,
-        message: 'You must accept the terms',
+        message: "You must accept the terms",
       });
+    }
+
+    const existingUser = await pool.query(
+      "SELECT id FROM users WHERE email = $1",
+      [normalizedEmail]
+    );
+
+    if (existingUser.rows.length === 0) {
+      await pool.query(
+        `
+        INSERT INTO users (
+          full_name,
+          email,
+          password_hash,
+          provider,
+          role,
+          is_verified,
+          is_suspended
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `,
+        [
+          payload.name,
+          normalizedEmail,
+          passwordHash,
+          "email",
+          "user",
+          false,
+          false,
+        ]
+      );
     }
 
     const provider = await providerModel.createProvider(payload);
 
     return res.status(201).json({
       success: true,
-      message: 'Provider created successfully. The ad will be published after age verification.',
+      message:
+        "Provider created successfully. The ad will be published after age verification.",
       data: provider,
     });
   } catch (error) {
-    if (error?.code === '23505') {
-      if (error.constraint === 'providers_email_key') {
+    if (error?.code === "23505") {
+      if (error.constraint === "providers_email_key") {
         return res.status(400).json({
           success: false,
-          message: 'Email already exists',
+          message: "Email already exists",
         });
       }
 
-      if (error.constraint === 'providers_public_id_key') {
+      if (error.constraint === "providers_public_id_key") {
         return res.status(400).json({
           success: false,
-          message: 'Could not generate a unique provider ID',
+          message: "Could not generate a unique provider ID",
+        });
+      }
+
+      if (error.constraint === "users_email_key") {
+        return res.status(400).json({
+          success: false,
+          message: "User email already exists",
         });
       }
     }
