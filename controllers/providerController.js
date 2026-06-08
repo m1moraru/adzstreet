@@ -1,5 +1,24 @@
-import bcrypt from 'bcrypt';
-import providerModel from '../models/providerModel.js';
+import bcrypt from "bcrypt";
+import pool from "../config/db.js";
+import providerModel from "../models/providerModel.js";
+
+async function getProviderAccountFromDb(req) {
+  const email = req.user?.email?.toLowerCase().trim();
+
+  if (!email) return null;
+
+  const result = await pool.query(
+    `
+    SELECT id
+    FROM providers
+    WHERE LOWER(TRIM(email)) = $1
+    LIMIT 1
+    `,
+    [email]
+  );
+
+  return result.rows[0] || null;
+}
 
 function parseJsonField(value, fallback) {
   try {
@@ -219,21 +238,23 @@ export async function createProvider(req, res, next) {
 
 export async function getMyProvider(req, res, next) {
   try {
-    const providerId = req.user?.id;
+    const providerAccount = await getProviderAccountFromDb(req);
 
-    if (!providerId) {
-      return res.status(401).json({
+    if (!providerAccount) {
+      return res.status(404).json({
         success: false,
-        message: 'Not authenticated',
+        message: "Provider account not found",
       });
     }
 
-    const provider = await providerModel.getProviderByInternalId(providerId);
+    const provider = await providerModel.getProviderByInternalId(
+      providerAccount.id
+    );
 
     if (!provider) {
       return res.status(404).json({
         success: false,
-        message: 'Provider not found',
+        message: "Provider not found",
       });
     }
 
@@ -248,14 +269,16 @@ export async function getMyProvider(req, res, next) {
 
 export async function updateMyProvider(req, res, next) {
   try {
-    const providerId = req.user?.id;
+    const providerAccount = await getProviderAccountFromDb(req);
 
-    if (!providerId) {
-      return res.status(401).json({
+    if (!providerAccount) {
+      return res.status(404).json({
         success: false,
-        message: 'Not authenticated',
+        message: "Provider account not found",
       });
     }
+
+    const providerId = providerAccount.id;
 
     const body = req.body;
 
@@ -275,7 +298,7 @@ export async function updateMyProvider(req, res, next) {
 
     const services = Array.isArray(selectedServices)
       ? selectedServices
-          .filter((serviceName) => typeof serviceName === 'string' && serviceName.trim())
+          .filter((serviceName) => typeof serviceName === "string" && serviceName.trim())
           .map((serviceName) => ({
             name: serviceName.trim(),
             isFeatured: starredServices.includes(serviceName),
@@ -287,21 +310,21 @@ export async function updateMyProvider(req, res, next) {
       profileTitle: body.profileTitle?.trim() || null,
       city: body.city?.trim(),
       country: body.country?.trim(),
-      price: parseOptionalNumber(rates?.['1 hour']) || 0,
+      price: parseOptionalNumber(rates?.["1 hour"]) || 0,
       age: parseOptionalNumber(body.age),
       nationality: body.nationality?.trim() || null,
       hair: body.hair?.trim() || null,
       eyes: body.eyes?.trim() || null,
       height: body.height?.trim() || null,
       phone: body.phone?.trim() || null,
-      whatsappEnabled: body.whatsappContact === 'true',
-      telegramEnabled: body.telegramContact === 'true',
+      whatsappEnabled: body.whatsappContact === "true",
+      telegramEnabled: body.telegramContact === "true",
       telegramUsername: body.telegramUsername?.replace("@", "").trim() || null,
-      serviceMode: body.serviceMode || 'in_call',
+      serviceMode: body.serviceMode || "in_call",
       bio: body.description?.trim() || null,
-      email: body.email?.trim() || null,
-      planId: body.planId || 'essential',
-      planDuration: body.planDuration || '7d',
+      email: body.email?.toLowerCase().trim() || null,
+      planId: body.planId || "essential",
+      planDuration: body.planDuration || "7d",
       locations: Array.isArray(locations) ? locations.filter(Boolean).slice(0, 3) : [],
       locationType: Array.isArray(locationType) ? locationType.filter(Boolean) : [],
       services,
@@ -313,28 +336,28 @@ export async function updateMyProvider(req, res, next) {
     if (!payload.name) {
       return res.status(400).json({
         success: false,
-        message: 'Working name is required',
+        message: "Working name is required",
       });
     }
 
     if (!payload.country) {
       return res.status(400).json({
         success: false,
-        message: 'Country is required',
+        message: "Country is required",
       });
     }
 
     if (!payload.city) {
       return res.status(400).json({
         success: false,
-        message: 'City is required',
+        message: "City is required",
       });
     }
 
-    if (body.telegramContact === 'true' && !body.telegramUsername?.trim()) {
+    if (body.telegramContact === "true" && !body.telegramUsername?.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Telegram username is required when Telegram contact is enabled',
+        message: "Telegram username is required when Telegram contact is enabled",
       });
     }
 
@@ -342,14 +365,14 @@ export async function updateMyProvider(req, res, next) {
 
     return res.status(200).json({
       success: true,
-      message: 'Profile updated successfully',
+      message: "Profile updated successfully",
       data: updatedProvider,
     });
   } catch (error) {
-    if (error?.code === '23505' && error.constraint === 'providers_email_key') {
+    if (error?.code === "23505" && error.constraint === "providers_email_key") {
       return res.status(400).json({
         success: false,
-        message: 'Email already exists',
+        message: "Email already exists",
       });
     }
 
@@ -359,28 +382,30 @@ export async function updateMyProvider(req, res, next) {
 
 export async function updateMyPassword(req, res, next) {
   try {
-    const providerId = req.user?.id;
+    const providerAccount = await getProviderAccountFromDb(req);
 
-    if (!providerId) {
-      return res.status(401).json({
+    if (!providerAccount) {
+      return res.status(404).json({
         success: false,
-        message: 'Not authenticated',
+        message: "Provider account not found",
       });
     }
+
+    const providerId = providerAccount.id;
 
     const { currentPassword, newPassword } = req.body || {};
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Current password and new password are required',
+        message: "Current password and new password are required",
       });
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({
         success: false,
-        message: 'New password must be at least 6 characters',
+        message: "New password must be at least 6 characters",
       });
     }
 
@@ -389,7 +414,7 @@ export async function updateMyPassword(req, res, next) {
     if (!provider || !provider.password_hash) {
       return res.status(404).json({
         success: false,
-        message: 'Provider password record not found',
+        message: "Provider password record not found",
       });
     }
 
@@ -398,7 +423,7 @@ export async function updateMyPassword(req, res, next) {
     if (!matches) {
       return res.status(400).json({
         success: false,
-        message: 'Current password is incorrect',
+        message: "Current password is incorrect",
       });
     }
 
@@ -408,7 +433,7 @@ export async function updateMyPassword(req, res, next) {
 
     return res.status(200).json({
       success: true,
-      message: 'Password updated successfully',
+      message: "Password updated successfully",
     });
   } catch (error) {
     next(error);
@@ -417,27 +442,29 @@ export async function updateMyPassword(req, res, next) {
 
 export async function pauseMyProvider(req, res, next) {
   try {
-    const providerId = req.user?.id;
+    const providerAccount = await getProviderAccountFromDb(req);
 
-    if (!providerId) {
-      return res.status(401).json({
+    if (!providerAccount) {
+      return res.status(404).json({
         success: false,
-        message: 'Not authenticated',
+        message: "Provider account not found",
       });
     }
+
+    const providerId = providerAccount.id;
 
     const provider = await providerModel.pauseProvider(providerId);
 
     if (!provider) {
       return res.status(404).json({
         success: false,
-        message: 'Provider not found',
+        message: "Provider not found",
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: 'Profile paused successfully',
+      message: "Profile paused successfully",
       data: provider,
     });
   } catch (error) {
@@ -447,22 +474,35 @@ export async function pauseMyProvider(req, res, next) {
 
 export async function updateMyPublicationStatus(req, res, next) {
   try {
-    const providerId = req.user?.id;
+    const providerAccount = await getProviderAccountFromDb(req);
     const { isPublished } = req.body || {};
 
-    if (!providerId) {
-      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    if (!providerAccount) {
+      return res.status(404).json({
+        success: false,
+        message: "Provider account not found",
+      });
     }
 
-    const provider = await providerModel.updatePublicationStatus(providerId, Boolean(isPublished));
+    const providerId = providerAccount.id;
+
+    const provider = await providerModel.updatePublicationStatus(
+      providerId,
+      Boolean(isPublished)
+    );
 
     if (!provider) {
-      return res.status(404).json({ success: false, message: 'Provider not found' });
+      return res.status(404).json({
+        success: false,
+        message: "Provider not found",
+      });
     }
 
     return res.status(200).json({
       success: true,
-      message: provider.isPublished ? 'Listing resumed successfully' : 'Listing paused successfully',
+      message: provider.isPublished
+        ? "Listing resumed successfully"
+        : "Listing paused successfully",
       data: provider,
     });
   } catch (error) {

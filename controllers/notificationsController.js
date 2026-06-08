@@ -45,7 +45,8 @@ export async function getUnreadNotificationCount(req, res) {
       SELECT COUNT(*)::int AS count
       FROM notifications
       WHERE user_id = $1
-      AND read_at IS NULL
+        AND read_at IS NULL
+        AND type = 'message'
       `,
       [userId]
     );
@@ -56,6 +57,7 @@ export async function getUnreadNotificationCount(req, res) {
     });
   } catch (error) {
     console.error("Get unread notification count error:", error);
+
     res.status(500).json({
       success: false,
       message: "Failed to load unread notification count",
