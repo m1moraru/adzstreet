@@ -1222,6 +1222,20 @@ async function findByPublicId(publicId) {
   return rows[0] || null;
 }
 
+async function getProviderByEmail(email) {
+  const { rows } = await pool.query(
+    `
+    SELECT *
+    FROM providers
+    WHERE LOWER(email) = LOWER($1)
+    LIMIT 1
+    `,
+    [email]
+  );
+
+  return rows[0] || null;
+}
+
 export default {
   getAllProviders,
   getProviderByPublicId,
@@ -1244,4 +1258,5 @@ export default {
   markAgeVerificationDeclined,
   findById,
   findByPublicId,
+  getProviderByEmail,
 };
