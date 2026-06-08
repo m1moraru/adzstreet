@@ -2,7 +2,9 @@ import bcrypt from "bcrypt";
 import passport from "../config/passport.js";
 import pool from "../config/db.js";
 
-function formatAuthUser(user) {
+async function formatAuthUser(user) {
+  const normalizedEmail = user.email?.toLowerCase().trim();
+
   if (user.account_type === "provider" || user.public_id) {
     return {
       id: user.public_id,
@@ -21,6 +23,18 @@ function formatAuthUser(user) {
     };
   }
 
+  const providerCheck = await pool.query(
+    `
+    SELECT id
+    FROM providers
+    WHERE LOWER(TRIM(email)) = $1
+    LIMIT 1
+    `,
+    [normalizedEmail]
+  );
+
+  const hasProviderAccount = providerCheck.rows.length > 0;
+
   return {
     id: user.id,
     name: user.name || user.full_name,
@@ -29,8 +43,8 @@ function formatAuthUser(user) {
     accountType: "user",
 
     hasUserAccount: true,
-    hasProviderAccount: false,
-    defaultDashboard: "user",
+    hasProviderAccount,
+    defaultDashboard: hasProviderAccount ? "provider" : "user",
   };
 }
 
