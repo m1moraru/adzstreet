@@ -17,6 +17,7 @@ import adsRoutes from "./routes/adsRoutes.js";
 import adminAdsRoutes from "./routes/adminAdsRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import notificationsRoute from "./routes/notificationsRoute.js";
+import accountRoutes from "./routes/accountRoutes.js";
 
 const app = express();
 
@@ -67,6 +68,7 @@ app.get("/", (_req, res) => {
 
 app.use("/api/users", usersRoutes);
 app.use("/api/ads", adsRoutes);
+app.use("/api/account", accountRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/providers", providerRoutes);
