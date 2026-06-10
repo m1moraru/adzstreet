@@ -275,6 +275,8 @@ async function publishAd(providerId) {
   return rows[0] || null;
 }
 
+//Reinstate when age verification logic has been implemented.
+{/*
 async function unpublishAd(providerId) {
   const query = `
     UPDATE providers
@@ -284,6 +286,23 @@ async function unpublishAd(providerId) {
     WHERE id = $1
     RETURNING *;
   `;
+  const { rows } = await pool.query(query, [providerId]);
+  return rows[0] || null;
+}
+*/}
+
+//Comment out when age verification logic has been implemented.
+async function publishAd(providerId) {
+  const query = `
+    UPDATE providers
+    SET
+      is_published = true,
+      is_active = true,
+      updated_at = NOW()
+    WHERE id = $1
+    RETURNING *;
+  `;
+
   const { rows } = await pool.query(query, [providerId]);
   return rows[0] || null;
 }
