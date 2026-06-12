@@ -43,6 +43,8 @@ async function getAllProviders(filters = {}) {
       p.height,
       p.phone,
       p.service_mode AS "serviceMode",
+      p.plan_id AS "planId",
+      p.plan_duration AS "planDuration",
       p.age_verified AS "ageVerified",
       p.age_verification_status AS "ageVerificationStatus",
       p.is_published AS "isPublished",
