@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { sendSellerMessageNotificationEmail } from "../services/emailService.js";
 
 export async function startConversation(req, res) {
 
@@ -15,8 +16,27 @@ export async function startConversation(req, res) {
     }
 
     const adResult = await pool.query(
-      `SELECT id, user_id AS seller_id, title FROM ads WHERE public_id = $1`,
-      [Number(adId)]
+      `
+      SELECT 
+        a.id,
+        a.user_id AS seller_id,
+        a.title,
+        a.public_id,
+
+        seller.email AS seller_email,
+        seller.full_name AS seller_name,
+
+        buyer.full_name AS buyer_name
+      FROM ads a
+      JOIN users seller
+        ON seller.id = a.user_id
+      JOIN users buyer
+        ON buyer.id = $2
+      WHERE a.public_id::text = $1::text
+        OR a.id::text = $1::text
+      LIMIT 1
+      `,
+      [adId, buyerId]
     );
 
     if (adResult.rows.length === 0) {
@@ -50,6 +70,21 @@ export async function startConversation(req, res) {
       `,
       [conversation.id, buyerId, message.trim()]
     );
+
+    try {
+      const siteUrl = process.env.FRONTEND_URL || "https://adzstreet.com";
+
+      await sendSellerMessageNotificationEmail({
+        to: ad.seller_email,
+        sellerName: ad.seller_name,
+        buyerName: ad.buyer_name,
+        adTitle: ad.title,
+        message: message.trim(),
+        conversationUrl: `${siteUrl}/messages/${conversation.id}`,
+      });
+    } catch (emailErr) {
+      console.error("Seller message email failed:", emailErr);
+    }
 
     res.status(201).json({
       conversation,
@@ -165,9 +200,22 @@ export async function sendMessage(req, res) {
 
     const access = await pool.query(
       `
-      SELECT *
-      FROM conversations
-      WHERE id = $1 AND (buyer_id = $2 OR seller_id = $2)
+      SELECT 
+        c.*,
+        a.title AS ad_title,
+        recipient.email AS recipient_email,
+        recipient.full_name AS recipient_name,
+        sender.full_name AS sender_name
+      FROM conversations c
+      JOIN ads a ON a.id = c.ad_id
+      JOIN users sender ON sender.id = $2
+      JOIN users recipient 
+        ON recipient.id = CASE
+          WHEN c.buyer_id = $2 THEN c.seller_id
+          ELSE c.buyer_id
+        END
+      WHERE c.id = $1 
+        AND (c.buyer_id = $2 OR c.seller_id = $2)
       `,
       [conversationId, userId]
     );
@@ -220,6 +268,21 @@ export async function sendMessage(req, res) {
         `/messages/${conversationId}`,
       ]
     );
+
+    try {
+      const siteUrl = process.env.FRONTEND_URL || "https://adzstreet.com";
+
+      await sendSellerMessageNotificationEmail({
+        to: conversation.recipient_email,
+        sellerName: conversation.recipient_name,
+        buyerName: conversation.sender_name,
+        adTitle: conversation.ad_title,
+        message: message.trim(),
+        conversationUrl: `${siteUrl}/messages/${conversationId}`,
+      });
+    } catch (emailErr) {
+      console.error("Message reply email failed:", emailErr);
+    }
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
