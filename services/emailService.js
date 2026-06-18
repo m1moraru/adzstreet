@@ -133,3 +133,84 @@ export async function sendProfessionalProviderEmail({
     html,
   });
 }
+
+function buildSellerMessageNotificationTemplate({
+  sellerName,
+  buyerName,
+  adTitle,
+  message,
+  conversationUrl,
+}) {
+  const safeSellerName = escapeHtml(sellerName || "there");
+  const safeBuyerName = escapeHtml(buyerName || "A buyer");
+  const safeAdTitle = escapeHtml(adTitle || "your ad");
+  const safeMessage = escapeHtml(message || "").replace(/\n/g, "<br />");
+  const safeConversationUrl = escapeHtml(conversationUrl);
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;background:#f5f5f7;padding:32px;">
+      <div style="max-width:640px;margin:auto;background:#fff;border-radius:20px;padding:32px;border:1px solid #e5e5e5;">
+        <h2 style="margin:0 0 16px;color:#111;">New message on AdzStreet</h2>
+
+        <p>Hello ${safeSellerName},</p>
+
+        <p>${safeBuyerName} sent you a message about:</p>
+
+        <h3 style="margin:16px 0;color:#111;">${safeAdTitle}</h3>
+
+        <div style="background:#fafafa;border:1px solid #e5e5e5;border-radius:16px;padding:18px;margin:24px 0;">
+          <p style="margin:0;color:#333;">${safeMessage}</p>
+        </div>
+
+        <p>
+          <a href="${safeConversationUrl}" style="display:inline-block;background:#655fa0;color:#fff;text-decoration:none;padding:14px 22px;border-radius:14px;font-weight:bold;">
+            Reply to message
+          </a>
+        </p>
+
+        <p style="font-size:13px;color:#777;margin-top:24px;">
+          You received this because someone contacted you about your ad on AdzStreet.
+        </p>
+      </div>
+    </div>
+  `;
+
+  const text = `
+Hello ${sellerName || "there"},
+
+${buyerName || "A buyer"} sent you a message about: ${adTitle || "your ad"}
+
+Message:
+${message || ""}
+
+Reply here:
+${conversationUrl}
+  `.trim();
+
+  return { html, text };
+}
+
+export async function sendSellerMessageNotificationEmail({
+  to,
+  sellerName,
+  buyerName,
+  adTitle,
+  message,
+  conversationUrl,
+}) {
+  const { html, text } = buildSellerMessageNotificationTemplate({
+    sellerName,
+    buyerName,
+    adTitle,
+    message,
+    conversationUrl,
+  });
+
+  return transporter.sendMail({
+    from: `"${process.env.SMTP_FROM_NAME || "AdzStreet"}" <${process.env.SMTP_FROM_EMAIL}>`,
+    to,
+    subject: `New message about your ad: ${adTitle || "AdzStreet ad"}`,
+    text,
+    html,
+  });
+}
