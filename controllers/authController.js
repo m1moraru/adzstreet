@@ -58,12 +58,17 @@ async function formatAuthUser(user) {
   if (hasProviderAccount) {
     return {
       id: providerAccount.public_id,
+
       userId: userAccount?.id || null,
       providerId: providerAccount.id,
       providerPublicId: providerAccount.public_id,
-      name: providerAccount.name,
+
+      full_name: userAccount?.full_name || null,
+      provider_name: providerAccount.name,
+
       email: providerAccount.email,
       city: providerAccount.city,
+
       ageVerified: providerAccount.age_verified,
       ageVerificationStatus: providerAccount.age_verification_status,
       isPublished: providerAccount.is_published,
