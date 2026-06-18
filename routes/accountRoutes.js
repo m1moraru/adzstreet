@@ -12,7 +12,7 @@ const router = express.Router();
 router.delete("/user", requireAuth, deleteUserAccount);
 router.delete("/provider", requireAuth, deleteProviderAccount);
 
-router.patch("/account/email", updateAccountEmail);
-router.patch("/account/password", updateAccountPassword);
+router.patch("/email", requireAuth, updateAccountEmail);
+router.patch("/password", requireAuth, updateAccountPassword);
 
 export default router;
