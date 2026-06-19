@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import session from "express-session";
+import { getSitemap } from "./controllers/sitemapController.js";
 
 import passport from "./config/passport.js";
 import providerRoutes from "./routes/providerRoutes.js";
@@ -66,6 +67,8 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.get("/", (_req, res) => {
   res.send("API is running...");
 });
+
+app.get("/sitemap.xml", getSitemap);
 
 app.use("/api/users", usersRoutes);
 app.use("/api/ads", adsRoutes);
