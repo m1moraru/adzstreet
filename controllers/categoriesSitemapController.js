@@ -25,13 +25,21 @@ export async function getCategoriesSitemap(req, res) {
       ORDER BY category, city
     `);
 
+    const providerCities = await pool.query(`
+      SELECT DISTINCT
+        city
+      FROM providers
+      WHERE age_verified = true
+        AND age_verification_status = 'verified'
+        AND is_published = true
+        AND city IS NOT NULL
+      ORDER BY city
+    `);
+
     const urls = [];
 
-    const categories = [
-      ...new Set(result.rows.map((r) => r.category)),
-    ];
+    const categories = [...new Set(result.rows.map((r) => r.category))];
 
-    // Category pages
     categories.forEach((category) => {
       urls.push(`
   <url>
@@ -41,16 +49,27 @@ export async function getCategoriesSitemap(req, res) {
   </url>`);
     });
 
-    // Category + city pages
     result.rows.forEach((row) => {
       urls.push(`
   <url>
-    <loc>https://adzstreet.com/category/${slugify(
-      row.category
-    )}/${slugify(row.city)}</loc>
-    <lastmod>${new Date(
-      row.updated_at || new Date()
-    ).toISOString()}</lastmod>
+    <loc>https://adzstreet.com/category/${slugify(row.category)}/${slugify(row.city)}</loc>
+    <lastmod>${new Date(row.updated_at || new Date()).toISOString()}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>`);
+    });
+
+    urls.push(`
+  <url>
+    <loc>https://adzstreet.com/adult</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>`);
+
+    providerCities.rows.forEach((row) => {
+      urls.push(`
+  <url>
+    <loc>https://adzstreet.com/adult/${slugify(row.city)}</loc>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>`);
