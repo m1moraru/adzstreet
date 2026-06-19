@@ -3,6 +3,8 @@ import cors from "cors";
 import path from "path";
 import session from "express-session";
 import { getSitemap } from "./controllers/sitemapController.js";
+import { getCategoriesSitemap }
+from "./controllers/categoriesSitemapController.js";
 
 import passport from "./config/passport.js";
 import providerRoutes from "./routes/providerRoutes.js";
@@ -69,6 +71,10 @@ app.get("/", (_req, res) => {
 });
 
 app.get("/sitemap.xml", getSitemap);
+app.get(
+  "/categories-sitemap.xml",
+  getCategoriesSitemap
+);
 
 app.use("/api/users", usersRoutes);
 app.use("/api/ads", adsRoutes);
