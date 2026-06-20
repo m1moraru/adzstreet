@@ -352,25 +352,21 @@ export async function getAds(req, res) {
 
     const values = [];
 
-    // CATEGORY
     if (category) {
       values.push(category);
       conditions.push(`a.category = $${values.length}`);
     }
 
-    // CITY
     if (city) {
       values.push(`%${city}%`);
       conditions.push(`a.city ILIKE $${values.length}`);
     }
 
-    // COUNTRY
     if (country) {
       values.push(`%${country}%`);
       conditions.push(`a.country ILIKE $${values.length}`);
     }
 
-    // SEARCH
     if (search) {
       values.push(`%${search}%`);
 
@@ -384,11 +380,9 @@ export async function getAds(req, res) {
       `);
     }
 
-    // LIMIT
     values.push(Number(limit));
     const limitIndex = values.length;
 
-    // OFFSET
     values.push(Number(offset));
     const offsetIndex = values.length;
 
@@ -406,9 +400,14 @@ export async function getAds(req, res) {
         a.price_text,
         a.created_at,
 
+        COALESCE(u.identity_verified, false) AS seller_identity_verified,
+
         p.image_url AS main_photo
 
       FROM ads a
+
+      LEFT JOIN users u
+        ON u.id = a.user_id
 
       LEFT JOIN LATERAL (
         SELECT image_url

@@ -1,5 +1,8 @@
 import bcrypt from "bcrypt";
 import pool from "../config/db.js";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function signupUser(req, res) {
   try {
@@ -68,6 +71,50 @@ export async function signupUser(req, res) {
     return res.status(500).json({
       success: false,
       message: "Failed to create account",
+    });
+  }
+}
+
+export async function startIdentityVerification(req, res) {
+  try {
+    const userId = req.user.id;
+
+    const session = await stripe.identity.verificationSessions.create({
+      type: "document",
+      client_reference_id: userId,
+      metadata: {
+        user_id: userId,
+      },
+      options: {
+        document: {
+          require_matching_selfie: true,
+        },
+      },
+      return_url: "https://adzstreet.com/user-dashboard",
+    });
+
+    await pool.query(
+      `
+      UPDATE users
+      SET
+        identity_verification_status = 'pending',
+        stripe_identity_session_id = $1
+      WHERE id = $2
+      `,
+      [session.id, userId]
+    );
+
+    return res.json({
+      success: true,
+      url: session.url,
+      status: "pending",
+    });
+  } catch (err) {
+    console.error("Stripe identity error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to start identity verification",
     });
   }
 }
