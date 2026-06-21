@@ -10,8 +10,19 @@ async function getAllProviders(filters = {}) {
   ];
 
   if (filters.city) {
-    values.push(filters.city);
-    conditions.push(`p.city = $${values.length}`);
+    values.push(`%${filters.city}%`);
+
+    conditions.push(`
+      (
+        p.city ILIKE $${values.length}
+        OR EXISTS (
+          SELECT 1
+          FROM provider_locations pl
+          WHERE pl.provider_id = p.id
+            AND pl.area_name ILIKE $${values.length}
+        )
+      )
+    `);
   }
 
   if (filters.country) {
