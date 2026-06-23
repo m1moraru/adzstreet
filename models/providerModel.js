@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { calculatePlanExpiry } from '../utils/providerPlanutils.js';
 
 async function getAllProviders(filters = {}) {
   const values = [];
@@ -438,8 +439,17 @@ async function getProviderByInternalId(providerId) {
 async function createProvider(payload) {
   const client = await pool.connect();
 
+  const planId = payload.planId || "essential";
+  const planDuration = payload.planDuration || "12m";
+
+  const paymentStatus =
+    payload.paymentStatus ||
+    (planId === "essential" ? "free" : "pending");
+
+  const planExpiry = calculatePlanExpiry(planDuration);
+
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
     const insertProvider = `
       INSERT INTO providers (
@@ -465,13 +475,16 @@ async function createProvider(payload) {
         plan_id,
         plan_duration,
         payment_status,
+        plan_expires_at,
         age_verified,
         age_verification_status,
         age_verified_at,
         is_published
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+        $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+        $21,$22,$23,$24,$25,$26,$27
       )
       RETURNING *;
     `;
@@ -481,7 +494,7 @@ async function createProvider(payload) {
       payload.profileTitle,
       payload.city,
       payload.country || null,
-      payload.category || 'Massage Therapist',
+      payload.category || "Massage Therapist",
       payload.price || 0,
       payload.age || null,
       payload.nationality || null,
@@ -492,21 +505,24 @@ async function createProvider(payload) {
       payload.whatsappEnabled || false,
       payload.telegramEnabled || false,
       payload.telegramUsername || null,
-      payload.serviceMode || 'in_call',
+      payload.serviceMode || "in_call",
       payload.bio || null,
       payload.email || null,
       payload.passwordHash || null,
-      payload.planId || 'essential',
-      payload.planDuration || '7d',
-      payload.paymentStatus || 'pending',
+      planId,
+      planDuration,
+      paymentStatus,
+      planExpiry,
       payload.ageVerified || false,
-      payload.ageVerificationStatus || 'pending',
+      payload.ageVerificationStatus || "pending",
       payload.ageVerifiedAt || null,
       payload.isPublished || false,
     ];
 
     const result = await client.query(insertProvider, values);
     const provider = result.rows[0];
+
+    provider.plan_expires_at = planExpiry;
 
     if (Array.isArray(payload.services)) {
       for (const service of payload.services) {
@@ -661,6 +677,10 @@ async function createProvider(payload) {
 async function updateProvider(providerId, payload) {
   const client = await pool.connect();
 
+  const planExpiry = calculatePlanExpiry(
+    payload.planDuration || "12m"
+  );
+
   try {
     await client.query('BEGIN');
 
@@ -686,8 +706,9 @@ async function updateProvider(providerId, payload) {
         email = $17,
         plan_id = $18,
         plan_duration = $19,
+        plan_expires_at = $20,
         updated_at = NOW()
-      WHERE id = $20
+      WHERE id = $21
         AND is_active = true
       RETURNING id;
     `;
@@ -710,8 +731,9 @@ async function updateProvider(providerId, payload) {
       payload.serviceMode || 'in_call',
       payload.bio || null,
       payload.email || null,
-      payload.planId || 'essential',
-      payload.planDuration || '7d',
+      payload.planId || "essential",
+      payload.planDuration || "12m",
+      planExpiry,
       providerId,
     ]);
 
@@ -1135,6 +1157,42 @@ async function getProvidersForAdmin(filters = {}) {
   return rows;
 }
 
+async function getProvidersExpiringSoon(days = 7) {
+  const { rows } = await pool.query(
+    `
+    SELECT
+      id,
+      name,
+      email,
+      plan_id,
+      plan_duration,
+      plan_expires_at
+    FROM providers
+    WHERE
+      email IS NOT NULL
+      AND is_active = true
+      AND plan_expires_at IS NOT NULL
+      AND plan_reminder_sent_at IS NULL
+      AND plan_expires_at <= NOW() + ($1 || ' days')::interval
+      AND plan_expires_at > NOW()
+    `,
+    [days]
+  );
+
+  return rows;
+}
+
+async function markPlanReminderSent(providerId) {
+  await pool.query(
+    `
+    UPDATE providers
+    SET plan_reminder_sent_at = NOW()
+    WHERE id = $1
+    `,
+    [providerId]
+  );
+}
+
 //------------------ AGE VERIFICATION ------------ //
 
 async function findByVerificationSessionId(sessionId) {
@@ -1267,8 +1325,10 @@ export default {
   verifyProviderAge,
   rejectProviderAge,
   getProvidersForAdmin,
+  getProvidersExpiringSoon,
   findByVerificationSessionId,
   markAgeVerificationStarted,
+  markPlanReminderSent,
   markAgeVerificationApproved,
   markAgeVerificationNeedsReview,
   markAgeVerificationDeclined,

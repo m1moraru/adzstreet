@@ -21,6 +21,8 @@ import adminAdsRoutes from "./routes/adminAdsRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import notificationsRoute from "./routes/notificationsRoute.js";
 import accountRoutes from "./routes/accountRoutes.js";
+import { startProviderPlanReminderJob } from "./jobs/providerPlanReminderJob.js";
+
 
 const app = express();
 
@@ -105,5 +107,10 @@ app.use((error, req, res, next) => {
     message: error.message || "Internal server error",
   });
 });
+
+// Start daily provider plan reminder emails
+if (process.env.ENABLE_CRON_JOBS === "true") {
+  startProviderPlanReminderJob();
+}
 
 export default app;
